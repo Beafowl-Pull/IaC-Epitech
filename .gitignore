@@ -1,0 +1,24 @@
+.vscode
+
+# Terraform
+*.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+terraform.tfplan
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# TLS / secrets
+*.pem
+*.key
+*.crt
+
+# OS
+.DS_Store
+
+.claude
+Epitech.pdf

@@ -40,16 +40,17 @@ jobs:
       - name: Compute image tag
         id: meta
         run: |
-          TAG=${{ github.event.inputs.image_tag || github.sha }}
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.sha }}"; fi
           echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
         run: |
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.image_tag }} \
-                       -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-                       task-manager/
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.image_tag }}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          TAG="${{ steps.meta.outputs.image_tag }}"
+          docker build -t "${IMAGE}:${TAG}" -t "${IMAGE}:latest" task-manager/
+          docker push "${IMAGE}:${TAG}"
+          docker push "${IMAGE}:latest"
 
   staging-apply:
     name: Deploy — staging

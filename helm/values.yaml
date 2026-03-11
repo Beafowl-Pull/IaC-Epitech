@@ -1,0 +1,130 @@
+replicaCount: 2
+
+image:
+  repository: harbor.aureagames.com/task-manager
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 443
+  targetPort: 8443
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+  hosts:
+    - host: tasks.aureagames.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+tls:
+  clusterIssuer: "letsencrypt-prod"
+  existingSecret: ""
+
+env:
+  PORT: "8443"
+  TLS_CERT_FILE: "/certs/tls.crt"
+  TLS_KEY_FILE: "/certs/tls.key"
+  DB_SSL_MODE: "require"
+
+secrets:
+  # SECURITY: Never set real secrets here. Pass via Terraform set_sensitive or sealed-secrets.
+  # jwtSecret: ""    # pass via --set-sensitive secrets.jwtSecret=...
+  # dbPassword: ""   # injected by Terraform from Cloud SQL module
+  # apiPassword: ""  # pass via TF_VAR_api_password env var
+  dbUser: "taskuser"
+  dbName: "tasks"
+  dbHost: ""         # injected by Terraform (Cloud SQL private IP)
+  dbPort: "5432"
+  apiUsername: "admin"
+
+cloudSQL:
+  enabled: false
+  instance: ""           # project:region:instance
+  socketDir: "/cloudsql"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8443
+    scheme: HTTPS
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8443
+    scheme: HTTPS
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+serviceAccount:
+  create: true
+  annotations: {}
+  # For GKE Workload Identity:
+  # annotations:
+  #   iam.gke.io/gcp-service-account: task-manager@PROJECT.iam.gserviceaccount.com
+
+networkPolicy:
+  enabled: true
+  ingressNamespace: "traefik"
+  allowPrometheus: true 
+  dbNamespace: "postgres"
+
+nodeSelector: {}
+tolerations: []
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - task-manager
+          topologyKey: kubernetes.io/hostname

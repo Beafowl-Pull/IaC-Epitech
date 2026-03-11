@@ -1,0 +1,209 @@
+stages:
+  - tf_plan
+  - tf_apply
+  - wait
+  - ansible
+  - metallb
+  - longhorn
+  - traefik
+
+variables:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "0"
+  TF_CLI_ARGS_init: "-upgrade"
+
+.tf:vars:
+  variables:
+    TF_VAR_pm_api_url: "$PROXMOX_API_URL"
+    TF_VAR_pm_api_token_id: "$PROXMOX_TOKEN_ID"
+    TF_VAR_pm_tls_insecure: true
+    TF_VAR_pve_node: "$pve_node"
+    TF_VAR_ssh_private_key_path: "./.ssh/id_ci"
+    TF_VAR_template_name: "$template_name"
+    TF_VAR_gateway: "$gateway"
+    TF_VAR_ip_base: "$ip_base"
+    TF_VAR_master_ip_start: "$master_ip_start"
+    TF_VAR_worker_ip_start: "$worker_ip_start"
+    TF_VAR_master_vmid_start: "$master_vmid_start"
+    TF_VAR_worker_vmid_start: "$worker_vmid_start"
+    TF_VAR_master: "$master"
+    TF_VAR_worker: "$worker"
+    TF_VAR_network: "$network"
+    TF_VAR_template_vmid: "$template_vmid"
+    TF_VAR_vm_prefix: "$vm_prefix"
+    TF_VAR_vlan_id: "$vlan_id"
+    TF_VAR_worker_memory_mb: "$worker_memory_mb"
+    TF_VAR_worker_cores: "$worker_cores"
+    TF_VAR_master_memory_mb: "$master_memory_mb"
+    TF_VAR_master_cores: "$master_cores"
+
+terraform:plan:
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
+  stage: tf_plan
+  extends: [.tf:vars]
+  before_script:
+    - cd terraform
+  script:
+    - terraform --version
+    - terraform init
+    - terraform fmt -recursive
+    - terraform validate
+    - terraform plan -out=tfplan
+  artifacts:
+    paths:
+      - terraform/tfplan
+      - terraform/.terraform.lock.hcl
+      - terraform/.terraform/**
+    expire_in: 1 week
+
+terraform:apply:
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
+  stage: tf_apply
+  needs: ["terraform:plan"]
+  extends: [.tf:vars]
+  rules:
+    - when: manual
+  before_script:
+    - cd terraform
+  script:
+    - terraform init
+    - terraform apply -auto-approve tfplan || terraform apply -auto-approve
+    - |
+      set -e
+      MASTER_JSON="$(terraform output -json master_ips || echo '[]')"
+      WORKER_JSON="$(terraform output -json worker_ips || echo '[]')"
+
+      to_lines() { printf "%s" "$1" | tr -d '[]"' | tr ',' '\n' | sed '/^$/d'; }
+
+      mkdir -p ../ansible
+      {
+        echo "[masters]"
+        to_lines "$MASTER_JSON"
+        echo
+        echo "[workers]"
+        to_lines "$WORKER_JSON"
+        echo
+        echo "[k3s:children]"
+        echo "masters"
+        echo "workers"
+        echo
+        echo "[all:vars]"
+        echo "ansible_user=ataraxie"
+        echo "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
+      } > ../ansible/inventory.ini
+
+      echo "=== DEBUG inventory ==="
+      ls -al ../ansible
+  artifacts:
+    paths:
+      - terraform/terraform.tfstate
+      - ansible/inventory.ini
+    expire_in: 1 week
+
+wait:
+  image: alpine:3.20
+  stage: wait
+  needs:
+    - "terraform:apply"
+  script:
+    - sleep 300
+    - echo "Wait stage completed"
+
+ansible:deploy:
+  image: alpine/ansible:latest
+  stage: ansible
+  needs: ["terraform:apply", "wait"]
+  variables:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+    ANSIBLE_STDOUT_CALLBACK: yaml
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - cd ansible
+  script:
+    - ansible --version
+    - echo "Using inventory:" && cat inventory.ini
+    - ANSIBLE_PRIVATE_KEY_FILE=~/.ssh/id_rsa ansible -m ping all -i inventory.ini
+    - ANSIBLE_PRIVATE_KEY_FILE=~/.ssh/id_rsa ansible-playbook -i inventory.ini site.yml -e ansible_user=ataraxie
+
+metallb:deploy:
+  image:
+    name: dtzar/helm-kubectl:3.15.3
+    entrypoint: [""]
+  stage: metallb
+  needs: ["ansible:deploy", "terraform:apply"]
+  variables:
+    KUBECONFIG: "$CI_PROJECT_DIR/kubeconfig"
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - bash -lc 'command -v scp || (apt-get update -y && apt-get install -y openssh-client)'
+  script:
+    - |
+      set -euo pipefail
+      MASTER_IP=$(awk '/^\[masters\]/{flag=1;next}/^\[/{flag=0}flag&&NF{print;exit}' ansible/inventory.ini)
+      echo "Master IP: $MASTER_IP"
+      scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ataraxie@"$MASTER_IP":/home/ataraxie/.kube/config "$KUBECONFIG"
+      kubectl cluster-info
+      chmod +x metallb/deploy-metallb.sh
+      cd ./metallb && ./deploy-metallb.sh
+      sleep 60
+      kubectl apply -f ipaddresspool.yaml -f l2advertisement.yaml
+      kubectl -n metallb-system get pods
+      kubectl get ipaddresspools --all-namespaces || true
+
+longhorn:deploy:
+  image:
+    name: dtzar/helm-kubectl:3.15.3
+    entrypoint: [""]
+  stage: longhorn
+  needs: ["metallb:deploy", "terraform:apply"]
+  variables:
+    KUBECONFIG: "$CI_PROJECT_DIR/kubeconfig"
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - bash -lc 'command -v scp || (apt-get update -y && apt-get install -y openssh-client)'
+  script:
+    - |
+      set -euo pipefail
+      MASTER_IP=$(awk '/^\[masters\]/{flag=1;next}/^\[/{flag=0}flag&&NF{print;exit}' ansible/inventory.ini)
+      echo "Master IP: $MASTER_IP"
+      scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ataraxie@"$MASTER_IP":/home/ataraxie/.kube/config "$KUBECONFIG"
+      kubectl cluster-info
+      chmod +x longhorn/deploy-longhorn.sh
+      cd ./longhorn && ./deploy-longhorn.sh
+      sleep 30
+      kubectl -n longhorn get pods
+
+traefik:deploy:
+  image:
+    name: dtzar/helm-kubectl:3.15.3
+    entrypoint: [""]
+  stage: traefik
+  needs: ["longhorn:deploy", "terraform:apply"]
+  variables:
+    KUBECONFIG: "$CI_PROJECT_DIR/kubeconfig"
+  before_script:
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - bash -lc 'command -v scp || (apt-get update -y && apt-get install -y openssh-client)'
+  script:
+    - |
+      set -euo pipefail
+      MASTER_IP=$(awk '/^\[masters\]/{flag=1;next}/^\[/{flag=0}flag&&NF{print;exit}' ansible/inventory.ini)
+      echo "Master IP: $MASTER_IP"
+      scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ataraxie@"$MASTER_IP":/home/ataraxie/.kube/config "$KUBECONFIG"
+      kubectl cluster-info
+      chmod +x traefik/deploy-traefik.sh
+      cd ./traefik && ./deploy-traefik.sh
+      sleep 30
+      kubectl -n traefik get pods

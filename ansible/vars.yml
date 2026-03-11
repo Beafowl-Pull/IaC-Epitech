@@ -1,0 +1,11 @@
+cni: "calico"
+cri: "crio"
+os_release: "{{ ansible_distribution_release | lower }}"
+
+pod_network_cidr: "192.168.0.0/16"
+
+kube_stream: "v1.33"
+crio_stream: "v1.34"
+cri_socket: "unix:///var/run/crio/crio.sock"
+
+deb_series: "Debian_13"

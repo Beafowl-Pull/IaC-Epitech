@@ -1,0 +1,285 @@
+- name: Prepare & init control-plane
+  become: true
+  hosts: masters
+  vars:
+    kube_apt_keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  tasks:
+    - name: Ensure base packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - apt-transport-https
+          - gnupg
+          - lsb-release
+          - open-iscsi
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Disable swap (runtime)
+      command: swapoff -a
+      changed_when: false
+
+    - name: Disable swap (fstab)
+      replace:
+        path: /etc/fstab
+        regexp: '^\s*([^#]\S*\s+)\S+\s+swap\s+'
+        replace: '# \1 none swap '
+
+    - name: Load kernel modules for k8s
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: Modprobe required modules
+      shell: |
+        modprobe overlay || true
+        modprobe br_netfilter || true
+      changed_when: false
+
+    - name: Sysctl for k8s networking
+      copy:
+        dest: /etc/sysctl.d/99-kubernetes-cri.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward = 1
+
+    - name: Apply sysctl
+      command: sysctl --system
+      changed_when: false
+
+    - name: Add Crio apt key
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_stream }}/deb/Release.key \ | gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+
+    - name: Add Crio apt repo
+      copy:
+        dest: /etc/apt/sources.list.d/cri-o.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_stream }}/deb/ /
+
+    - name: Install CRI-O
+      apt:
+        name:
+          - cri-o
+        state: present
+        update_cache: true
+
+    - name: Enable & start CRI-O
+      systemd:
+        name: crio
+        state: started
+        enabled: true
+
+    - name: Add Kubernetes apt key (pkgs.k8s.io)
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/{{ kube_stream }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+        chmod a+r /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes apt repo
+      copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kube_stream }}/deb/ /
+
+    - name: Install kubelet/kubeadm/kubectl
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: true
+
+    - name: Hold k8s packages
+      ansible.builtin.dpkg_selections:
+        name: kubeadm
+        selection: hold
+
+    - name: Hold k8s packages
+      ansible.builtin.dpkg_selections:
+        name: kubectl
+        selection: hold
+
+    - name: Hold k8s packages
+      ansible.builtin.dpkg_selections:
+        name: kubelet
+        selection: hold
+
+    - name: kubeadm init (CRI-O)
+      shell: |
+        kubeadm init \
+          --pod-network-cidr={{ pod_network_cidr }} \
+          --cri-socket {{ cri_socket }}
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Configure kubectl for {{ ansible_user }}
+      become_user: "{{ ansible_user }}"
+      shell: |
+        mkdir -p $HOME/.kube
+        sudo cp -f /etc/kubernetes/admin.conf $HOME/.kube/config
+        sudo chown $(id -u):$(id -g) $HOME/.kube/config
+      args:
+        creates: "/home/{{ ansible_user }}/.kube/config"
+
+    - name: Download Calico manifest
+      get_url:
+        url: https://raw.githubusercontent.com/projectcalico/calico/v3.28.3/manifests/calico.yaml
+        dest: /tmp/calico.yaml
+        mode: '0644'
+
+    - name: Set pod CIDR in Calico (if different)
+      replace:
+        path: /tmp/calico.yaml
+        regexp: '192.168.0.0/16'
+        replace: '{{ pod_network_cidr }}'
+      when: pod_network_cidr != '192.168.0.0/16'
+
+    - name: Apply Calico CNI
+      shell: export KUBECONFIG=/etc/kubernetes/admin.conf && kubectl apply -f /tmp/calico.yaml
+
+    - name: Get join command
+      shell: export KUBECONFIG=/etc/kubernetes/admin.conf && kubeadm token create --print-join-command
+      register: join_cmd
+
+    - name: Set join command fact
+      set_fact:
+        kubeadm_join_cmd: "{{ join_cmd.stdout }}"
+      run_once: true
+
+    - name: Copy config to beafowl user
+      shell: |
+        mkdir -p /home/beafowl/.kube
+        sudo cp -f /etc/kubernetes/admin.conf /home/beafowl/.kube/config
+        chown beafowl:beafowl /home/beafowl/.kube/config
+
+- name: Join workers
+  hosts: workers
+  become: true
+  tasks:
+    - name: Ensure base packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - apt-transport-https
+          - gnupg
+          - lsb-release
+          - open-iscsi
+        state: present
+        update_cache: true
+      when: ansible_os_family == "Debian"
+
+    - name: Disable swap (runtime)
+      command: swapoff -a
+      changed_when: false
+
+    - name: Disable swap (fstab)
+      replace:
+        path: /etc/fstab
+        regexp: '^\s*([^#]\S*\s+)\S+\s+swap\s+'
+        replace: '# \1 none swap '
+
+    - name: Load kernel modules for k8s
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: Modprobe required modules
+      shell: |
+        modprobe overlay || true
+        modprobe br_netfilter || true
+      changed_when: false
+
+    - name: Sysctl for k8s networking
+      copy:
+        dest: /etc/sysctl.d/99-kubernetes-cri.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward = 1
+
+    - name: Apply sysctl
+      command: sysctl --system
+      changed_when: false
+
+    - name: Add Crio apt key
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_stream }}/deb/Release.key \ | gpg --dearmor -o /etc/apt/keyrings/cri-o-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/cri-o-apt-keyring.gpg
+
+    - name: Add Crio apt repo
+      copy:
+        dest: /etc/apt/sources.list.d/cri-o.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/cri-o-apt-keyring.gpg] https://download.opensuse.org/repositories/isv:/cri-o:/stable:/{{ crio_stream }}/deb/ /
+
+    - name: Install CRI-O
+      apt:
+        name:
+          - cri-o
+        state: present
+        update_cache: true
+
+    - name: Enable & start CRI-O
+      systemd:
+        name: crio
+        state: started
+        enabled: true
+
+    - name: Add Kubernetes apt key (pkgs.k8s.io)
+      shell: |
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/{{ kube_stream }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes apt repo
+      copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: |
+          deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kube_stream }}/deb/ /
+
+    - name: Install kubelet/kubeadm/kubectl
+      apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+        update_cache: true
+
+    - name: Hold k8s packages
+      ansible.builtin.dpkg_selections:
+        name: kubeadm
+        selection: hold
+
+    - name: Hold k8s packages
+      ansible.builtin.dpkg_selections:
+        name: kubectl
+        selection: hold
+
+    - name: Hold k8s packages
+      ansible.builtin.dpkg_selections:
+        name: kubelet
+        selection: hold
+
+    - name: Join node to cluster (CRI-O)
+      shell: "{{ hostvars[groups['masters'][0]].kubeadm_join_cmd }} --cri-socket {{ cri_socket }}"
+      args:
+        creates: /etc/kubernetes/kubelet.conf

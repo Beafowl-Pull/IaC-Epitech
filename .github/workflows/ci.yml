@@ -1,0 +1,143 @@
+name: CI — Terraform fmt/validate/plan
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  id-token: write   # Required for WIF OIDC
+  contents: read
+  pull-requests: write
+
+env:
+  TF_VERSION: "1.8.0"
+
+jobs:
+  terraform-checks:
+    name: Terraform fmt & validate
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+  plan-staging:
+    name: Terraform plan — staging
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    environment: staging-plan
+    needs: terraform-checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init (staging)
+        run: terraform init -backend-config="prefix=task-manager/staging"
+        working-directory: terraform
+
+      - name: Terraform validate (staging)
+        run: terraform validate
+        working-directory: terraform
+
+      - name: Terraform plan (staging)
+        id: plan_staging
+        run: |
+          terraform plan \
+            -var-file="envs/staging/terraform.tfvars" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}" \
+            -no-color -out=staging.tfplan 2>&1 | tee staging_plan.txt
+        working-directory: terraform
+
+      - name: Post staging plan as PR comment
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/staging_plan.txt', 'utf8');
+            const truncated = plan.length > 60000 ? plan.substring(0, 60000) + '\n...(truncated)' : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Terraform Plan — Staging\n\`\`\`\n${truncated}\n\`\`\``
+            });
+
+  plan-prod:
+    name: Terraform plan — prod
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    environment: prod-plan
+    needs: terraform-checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init (prod)
+        run: terraform init -backend-config="prefix=task-manager/prod"
+        working-directory: terraform
+
+      - name: Terraform validate (prod)
+        run: terraform validate
+        working-directory: terraform
+
+      - name: Terraform plan (prod)
+        id: plan_prod
+        run: |
+          terraform plan \
+            -var-file="envs/prod/terraform.tfvars" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}" \
+            -no-color -out=prod.tfplan 2>&1 | tee prod_plan.txt
+        working-directory: terraform
+
+      - name: Post prod plan as PR comment
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/prod_plan.txt', 'utf8');
+            const truncated = plan.length > 60000 ? plan.substring(0, 60000) + '\n...(truncated)' : plan;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Terraform Plan — Prod\n\`\`\`\n${truncated}\n\`\`\``
+            });

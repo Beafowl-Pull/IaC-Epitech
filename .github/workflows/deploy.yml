@@ -46,7 +46,7 @@ jobs:
 
       - name: Build and push
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          IMAGE=$(printf '%s/%s' "${{ env.REGISTRY }}" "${{ env.IMAGE_NAME }}" | tr -d '\r\n ')
           TAG="${{ steps.meta.outputs.image_tag }}"
           docker build -t "${IMAGE}:${TAG}" -t "${IMAGE}:latest" task-manager/
           docker push "${IMAGE}:${TAG}"
@@ -78,10 +78,11 @@ jobs:
 
       - name: Terraform apply (staging)
         run: |
+          IMAGE_REPO=$(printf '%s/%s' "${{ env.REGISTRY }}" "${{ env.IMAGE_NAME }}" | tr -d '\r\n ')
           terraform apply -auto-approve \
             -var-file="envs/staging/terraform.tfvars" \
             -var="image_tag=${{ needs.build-push.outputs.image_tag }}" \
-            -var="image_repo=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
+            -var="image_repo=${IMAGE_REPO}" \
             -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
             -var="api_password=${{ secrets.API_PASSWORD }}" \
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
@@ -114,10 +115,11 @@ jobs:
 
       - name: Terraform apply (prod)
         run: |
+          IMAGE_REPO=$(printf '%s/%s' "${{ env.REGISTRY }}" "${{ env.IMAGE_NAME }}" | tr -d '\r\n ')
           terraform apply -auto-approve \
             -var-file="envs/prod/terraform.tfvars" \
             -var="image_tag=${{ needs.build-push.outputs.image_tag }}" \
-            -var="image_repo=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
+            -var="image_repo=${IMAGE_REPO}" \
             -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
             -var="api_password=${{ secrets.API_PASSWORD }}" \
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \

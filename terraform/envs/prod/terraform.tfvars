@@ -25,6 +25,7 @@ node_pool_config = {
   min_node_count = 2
   max_node_count = 10
   disk_size_gb   = 100
+  disk_type      = "pd-ssd"
 }
 
 db_name = "tasks"

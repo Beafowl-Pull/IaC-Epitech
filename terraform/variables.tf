@@ -79,12 +79,14 @@ variable "node_pool_config" {
     min_node_count = number
     max_node_count = number
     disk_size_gb   = number
+    disk_type      = optional(string, "pd-standard")
   })
   default = {
     machine_type   = "e2-standard-2"
     min_node_count = 1
     max_node_count = 5
     disk_size_gb   = 50
+    disk_type      = "pd-standard"
   }
 }
 

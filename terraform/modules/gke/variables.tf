@@ -15,5 +15,6 @@ variable "node_pool_config" {
     min_node_count = number
     max_node_count = number
     disk_size_gb   = number
+    disk_type      = optional(string, "pd-standard")
   })
 }

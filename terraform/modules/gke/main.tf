@@ -92,7 +92,7 @@ resource "google_container_node_pool" "main" {
   node_config {
     machine_type = var.node_pool_config.machine_type
     disk_size_gb = var.node_pool_config.disk_size_gb
-    disk_type    = "pd-ssd"
+    disk_type    = var.node_pool_config.disk_type
 
     # Workload Identity on each node
     workload_metadata_config {

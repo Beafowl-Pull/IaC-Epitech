@@ -16,7 +16,7 @@ permissions:
 env:
   TF_VERSION: "1.8.0"
   REGISTRY: "europe-west1-docker.pkg.dev"
-  IMAGE_NAME: "${{ vars.GCP_PROJECT_ID }}/task-manager/task-manager"
+  IMAGE_NAME: "iac-epitech-489911/task-manager/task-manager"
 
 jobs:
   build-push:

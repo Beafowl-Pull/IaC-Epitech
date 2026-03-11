@@ -244,13 +244,30 @@ resource "helm_release" "kube_prometheus_stack" {
   namespace        = "monitoring"
   create_namespace = true
 
-  set { name = "grafana.ingress.enabled"; value = "true" }
-  set { name = "grafana.ingress.ingressClassName"; value = "nginx" }
-  set { name = "grafana.ingress.hosts[0]"; value = "grafana.${var.domain}" }
-  set_sensitive { name = "grafana.adminPassword"; value = var.grafana_password }
-
-  set { name = "prometheus.prometheusSpec.retention"; value = "7d" }
-  set { name = "alertmanager.enabled"; value = "true" }
+  set {
+    name  = "grafana.ingress.enabled"
+    value = "true"
+  }
+  set {
+    name  = "grafana.ingress.ingressClassName"
+    value = "nginx"
+  }
+  set {
+    name  = "grafana.ingress.hosts[0]"
+    value = "grafana.${var.domain}"
+  }
+  set_sensitive {
+    name  = "grafana.adminPassword"
+    value = var.grafana_password
+  }
+  set {
+    name  = "prometheus.prometheusSpec.retention"
+    value = "7d"
+  }
+  set {
+    name  = "alertmanager.enabled"
+    value = "true"
+  }
 
   wait    = true
   timeout = 600
@@ -279,13 +296,26 @@ resource "helm_release" "arc_runner_set" {
   namespace        = "arc-runners"
   create_namespace = true
 
-  set { name = "githubConfigUrl"; value = "https://github.com/${var.github_repo}" }
-  set_sensitive { name = "githubConfigSecret.github_token"; value = var.github_pat }
-
-  set { name = "minRunners"; value = "0" }
-  set { name = "maxRunners"; value = var.environment == "prod" ? "5" : "2" }
-
-  set { name = "template.spec.nodeSelector.environment"; value = var.environment }
+  set {
+    name  = "githubConfigUrl"
+    value = "https://github.com/${var.github_repo}"
+  }
+  set_sensitive {
+    name  = "githubConfigSecret.github_token"
+    value = var.github_pat
+  }
+  set {
+    name  = "minRunners"
+    value = "0"
+  }
+  set {
+    name  = "maxRunners"
+    value = var.environment == "prod" ? "5" : "2"
+  }
+  set {
+    name  = "template.spec.nodeSelector.environment"
+    value = var.environment
+  }
 
   depends_on = [helm_release.arc_controller]
 }

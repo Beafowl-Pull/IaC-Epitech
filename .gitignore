@@ -1,7 +1,7 @@
 .vscode
 
 # Terraform
-*.tfvars
+*.tfvars.secret
 *.tfstate
 *.tfstate.backup
 .terraform/

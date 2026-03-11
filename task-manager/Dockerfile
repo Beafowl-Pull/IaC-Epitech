@@ -5,7 +5,8 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /app
 
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go env -w GOPROXY=https://proxy.golang.org,direct GONOSUMDB=* && \
+    go mod download
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \

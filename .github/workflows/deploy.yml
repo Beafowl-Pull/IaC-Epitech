@@ -76,7 +76,19 @@ jobs:
         run: terraform init -backend-config="prefix=task-manager/staging"
         working-directory: terraform
 
-      - name: Terraform apply (staging)
+      - name: Terraform apply — phase 1 (cluster + db)
+        run: |
+          terraform apply -auto-approve \
+            -target=module.gke \
+            -target=module.cloudsql \
+            -var-file="envs/staging/terraform.tfvars" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+        working-directory: terraform
+
+      - name: Terraform apply — phase 2 (helm workloads)
         run: |
           IMAGE_REPO=$(printf '%s/%s' "${{ env.REGISTRY }}" "${{ env.IMAGE_NAME }}" | tr -d '\r\n ')
           terraform apply -auto-approve \
@@ -113,7 +125,19 @@ jobs:
         run: terraform init -backend-config="prefix=task-manager/prod"
         working-directory: terraform
 
-      - name: Terraform apply (prod)
+      - name: Terraform apply — phase 1 (cluster + db)
+        run: |
+          terraform apply -auto-approve \
+            -target=module.gke \
+            -target=module.cloudsql \
+            -var-file="envs/prod/terraform.tfvars" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+        working-directory: terraform
+
+      - name: Terraform apply — phase 2 (helm workloads)
         run: |
           IMAGE_REPO=$(printf '%s/%s' "${{ env.REGISTRY }}" "${{ env.IMAGE_NAME }}" | tr -d '\r\n ')
           terraform apply -auto-approve \

@@ -60,7 +60,7 @@ resource "google_container_cluster" "main" {
     recurring_window {
       start_time = "2024-01-01T02:00:00Z"
       end_time   = "2024-01-01T06:00:00Z"
-      recurrence = "FREQ=WEEKLY;BYDAY=SU"
+      recurrence = "FREQ=DAILY"
     }
   }
 
@@ -165,4 +165,6 @@ resource "google_service_account_iam_member" "workload_identity" {
   service_account_id = google_service_account.app.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.namespace}/${var.cluster_name}]"
+
+  depends_on = [google_container_cluster.main]
 }

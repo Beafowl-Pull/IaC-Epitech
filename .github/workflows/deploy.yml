@@ -1,0 +1,121 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy (defaults to git SHA)"
+        required: false
+
+permissions:
+  id-token: write   # Required for WIF OIDC
+  contents: read
+
+env:
+  TF_VERSION: "1.8.0"
+  REGISTRY: "europe-west1-docker.pkg.dev"
+  IMAGE_NAME: "${{ vars.GCP_PROJECT_ID }}/task-manager/task-manager"
+
+jobs:
+  build-push:
+    name: Build & push Docker image
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Compute image tag
+        id: meta
+        run: |
+          TAG=${{ github.event.inputs.image_tag || github.sha }}
+          echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.image_tag }} \
+                       -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+                       task-manager/
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.image_tag }}
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+  staging-apply:
+    name: Deploy — staging
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    environment: staging
+    needs: build-push
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init (staging)
+        run: terraform init -backend-config="prefix=task-manager/staging"
+        working-directory: terraform
+
+      - name: Terraform apply (staging)
+        run: |
+          terraform apply -auto-approve \
+            -var-file="envs/staging/terraform.tfvars" \
+            -var="image_tag=${{ needs.build-push.outputs.image_tag }}" \
+            -var="image_repo=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+        working-directory: terraform
+
+  prod-apply:
+    name: Deploy — prod
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    environment: prod
+    needs: [build-push, staging-apply]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init (prod)
+        run: terraform init -backend-config="prefix=task-manager/prod"
+        working-directory: terraform
+
+      - name: Terraform apply (prod)
+        run: |
+          terraform apply -auto-approve \
+            -var-file="envs/prod/terraform.tfvars" \
+            -var="image_tag=${{ needs.build-push.outputs.image_tag }}" \
+            -var="image_repo=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+        working-directory: terraform

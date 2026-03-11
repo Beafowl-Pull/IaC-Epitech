@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "task-manager.fullname" . }}-config
+  labels:
+    {{- include "task-manager.labels" . | nindent 4 }}
+data:
+  PORT: {{ .Values.env.PORT | quote }}
+  TLS_CERT_FILE: {{ .Values.env.TLS_CERT_FILE | quote }}
+  TLS_KEY_FILE: {{ .Values.env.TLS_KEY_FILE | quote }}
+  DB_SSL_MODE: {{ .Values.env.DB_SSL_MODE | quote }}
+  {{- if .Values.cloudSQL.enabled }}
+  DB_SOCKET_DIR: {{ .Values.cloudSQL.socketDir | quote }}
+  DB_INSTANCE: {{ .Values.cloudSQL.instance | quote }}
+  {{- end }}

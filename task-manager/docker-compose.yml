@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    ports:
+      - "8443:8443"
+    environment:
+      PORT: "8443"
+      TLS_CERT_FILE: "/certs/tls.crt"
+      TLS_KEY_FILE: "/certs/tls.key"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: taskuser
+      DB_PASSWORD: taskpassword
+      DB_NAME: tasks
+      DB_SSL_MODE: disable
+      JWT_SECRET: local-dev-secret-change-in-prod
+      API_USERNAME: admin
+      API_PASSWORD: adminpassword
+    volumes:
+      - ./certs:/certs:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpassword
+      POSTGRES_DB: tasks
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d tasks"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

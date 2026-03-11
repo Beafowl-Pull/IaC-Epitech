@@ -1,0 +1,52 @@
+name: Destroy infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to destroy (staging or prod)"
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+
+permissions:
+  id-token: write   # Required for WIF OIDC
+  contents: read
+
+env:
+  TF_VERSION: "1.8.0"
+
+jobs:
+  destroy:
+    name: Terraform destroy — ${{ github.event.inputs.environment }}
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: terraform init -backend-config="prefix=task-manager/${{ github.event.inputs.environment }}"
+        working-directory: terraform
+
+      - name: Terraform destroy
+        run: |
+          terraform destroy -auto-approve \
+            -var-file="envs/${{ github.event.inputs.environment }}/terraform.tfvars" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+        working-directory: terraform

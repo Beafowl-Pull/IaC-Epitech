@@ -3,15 +3,15 @@
 #   export TF_VAR_jwt_secret=$(openssl rand -hex 32)
 #   export TF_VAR_api_password="yourpassword"
 
-project_id  = "YOUR_PROJECT_ID"
+project_id  = "iac-epitech-489911"
 region      = "europe-west1"
 environment = "prod"
 app_name    = "task-manager"
 namespace   = "task-manager"
 
 domain      = "tasks.example.com"
-image_repo  = "gcr.io/YOUR_PROJECT_ID/task-manager"
-image_tag   = "1.0.0"   # pin to a specific tag in prod, never use "latest"
+image_repo  = "europe-west1-docker.pkg.dev/iac-epitech-489911/task-manager/task-manager"
+image_tag   = "latest"
 
 cluster_issuer    = "letsencrypt-prod"
 letsencrypt_email = "devops@example.com"

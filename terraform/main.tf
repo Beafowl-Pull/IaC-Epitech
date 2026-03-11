@@ -26,7 +26,7 @@ terraform {
 
   # Remote state — change bucket name to your own
   backend "gcs" {
-    bucket = "YOUR_PROJECT_ID-tfstate"
+    bucket = "iac-epitech"
     prefix = "task-manager"
   }
 }

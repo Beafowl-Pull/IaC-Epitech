@@ -15,7 +15,7 @@ image_tag   = "latest"
 
 cluster_issuer    = "letsencrypt-staging"
 letsencrypt_email = "devops@example.com"
-github_repo       = "ORG/REPO"
+github_repo       = "Beafowl-Pull/IaC-Epitech"
 
 network    = "default"
 subnetwork = "default"

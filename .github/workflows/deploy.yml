@@ -79,19 +79,12 @@ jobs:
       - name: Import existing resources (idempotent)
         working-directory: terraform
         run: |
-          TF_VARS="-var-file=envs/staging/terraform.tfvars -var=jwt_secret=${{ secrets.JWT_SECRET }} -var=api_password=${{ secrets.API_PASSWORD }} -var=grafana_password=${{ secrets.GRAFANA_PASSWORD }} -var=github_pat=${{ secrets.GIT_PAT }}"
-
-          terraform state show google_iam_workload_identity_pool.github > /dev/null 2>&1 || \
-            terraform import $TF_VARS google_iam_workload_identity_pool.github \
-              projects/iac-epitech-489911/locations/global/workloadIdentityPools/github-actions-pool-v3
-
-          terraform state show google_iam_workload_identity_pool_provider.github > /dev/null 2>&1 || \
-            terraform import $TF_VARS google_iam_workload_identity_pool_provider.github \
-              projects/iac-epitech-489911/locations/global/workloadIdentityPools/github-actions-pool-v3/providers/github-actions-provider
-
-          terraform state show google_service_account.github_actions > /dev/null 2>&1 || \
-            terraform import $TF_VARS google_service_account.github_actions \
-              projects/iac-epitech-489911/serviceAccounts/github-actions-sa@iac-epitech-489911.iam.gserviceaccount.com
+          bash scripts/import-existing.sh staging \
+            -var-file=envs/staging/terraform.tfvars \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
 
       - name: Terraform apply — infra
         run: |
@@ -127,6 +120,9 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Install gke-gcloud-auth-plugin
+        run: gcloud components install gke-gcloud-auth-plugin --quiet
 
       - name: Get kubeconfig
         run: |
@@ -181,6 +177,16 @@ jobs:
         run: terraform init -backend-config="prefix=task-manager/prod"
         working-directory: terraform
 
+      - name: Import existing resources (idempotent)
+        working-directory: terraform
+        run: |
+          bash scripts/import-existing.sh prod \
+            -var-file=envs/prod/terraform.tfvars \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+
       - name: Terraform apply — infra
         run: |
           terraform apply -auto-approve \
@@ -215,6 +221,9 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Install gke-gcloud-auth-plugin
+        run: gcloud components install gke-gcloud-auth-plugin --quiet
 
       - name: Get kubeconfig
         run: |

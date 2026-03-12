@@ -81,6 +81,7 @@ jobs:
       - name: Import WIF pool (idempotent)
         working-directory: terraform
         run: |
+          terraform state show google_iam_workload_identity_pool.github > /dev/null 2>&1 || \
           terraform import \
             -var-file="envs/staging/terraform.tfvars" \
             -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
@@ -88,8 +89,7 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
             -var="github_pat=${{ secrets.GIT_PAT }}" \
             google_iam_workload_identity_pool.github \
-            projects/iac-epitech-489911/locations/global/workloadIdentityPools/github-actions-pool-v2 \
-          || true
+            projects/iac-epitech-489911/locations/global/workloadIdentityPools/github-actions-pool-v2
 
       - name: Terraform apply — infra
         run: |

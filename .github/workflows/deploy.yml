@@ -78,6 +78,19 @@ jobs:
         run: terraform init -backend-config="prefix=task-manager/staging"
         working-directory: terraform
 
+      - name: Import WIF pool (idempotent)
+        working-directory: terraform
+        run: |
+          terraform import \
+            -var-file="envs/staging/terraform.tfvars" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}" \
+            google_iam_workload_identity_pool.github \
+            projects/iac-epitech-489911/locations/global/workloadIdentityPools/github-actions-pool-v2 \
+          || true
+
       - name: Terraform apply — infra
         run: |
           terraform apply -auto-approve \

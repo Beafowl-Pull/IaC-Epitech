@@ -30,9 +30,8 @@ resource "helm_release" "cert_manager" {
     value = "cert-manager"
   }
 
-  # Wait for all pods to be ready before proceeding
   wait    = true
-  timeout = 300
+  timeout = 600
 }
 
 # ── ClusterIssuers (Let's Encrypt staging + prod) ─────────────────────────────
@@ -52,7 +51,7 @@ resource "kubectl_manifest" "cluster_issuer_staging" {
         solvers:
           - http01:
               ingress:
-                ingressClassName: nginx
+                ingressClassName: traefik
   YAML
 
   depends_on = [helm_release.cert_manager]
@@ -73,50 +72,55 @@ resource "kubectl_manifest" "cluster_issuer_prod" {
         solvers:
           - http01:
               ingress:
-                ingressClassName: nginx
+                ingressClassName: traefik
   YAML
 
   depends_on = [helm_release.cert_manager]
 }
 
-# ── ingress-nginx ──────────────────────────────────────────────────────────────
+# ── Traefik ────────────────────────────────────────────────────────────────────
 
-resource "helm_release" "ingress_nginx" {
-  name             = "ingress-nginx"
-  repository       = "https://kubernetes.github.io/ingress-nginx"
-  chart            = "ingress-nginx"
-  version          = "4.10.0"
-  namespace        = "ingress-nginx"
+resource "helm_release" "traefik" {
+  name             = "traefik"
+  repository       = "https://helm.traefik.io/traefik"
+  chart            = "traefik"
+  version          = "27.0.2"
+  namespace        = "traefik"
   create_namespace = true
 
   set {
-    name  = "controller.service.type"
+    name  = "service.type"
     value = "LoadBalancer"
   }
 
   set {
-    name  = "controller.replicaCount"
+    name  = "deployment.replicas"
     value = var.environment == "prod" ? "2" : "1"
   }
 
   set {
-    name  = "controller.metrics.enabled"
+    name  = "metrics.prometheus.enabled"
     value = "true"
   }
 
   # Forward real client IP from GCP LB
   set {
-    name  = "controller.config.use-forwarded-headers"
+    name  = "service.spec.externalTrafficPolicy"
+    value = "Local"
+  }
+
+  set {
+    name  = "ingressClass.enabled"
     value = "true"
   }
 
   set {
-    name  = "controller.config.compute-full-forwarded-for"
+    name  = "ingressClass.isDefaultClass"
     value = "true"
   }
 
   wait    = true
-  timeout = 300
+  timeout = 600
 }
 
 # ── task-manager Helm release ─────────────────────────────────────────────────
@@ -214,7 +218,7 @@ resource "helm_release" "task_manager" {
 
   depends_on = [
     helm_release.cert_manager,
-    helm_release.ingress_nginx,
+    helm_release.traefik,
     kubectl_manifest.cluster_issuer_prod,
     kubectl_manifest.cluster_issuer_staging,
   ]
@@ -236,7 +240,7 @@ resource "helm_release" "kube_prometheus_stack" {
   }
   set {
     name  = "grafana.ingress.ingressClassName"
-    value = "nginx"
+    value = "traefik"
   }
   set {
     name  = "grafana.ingress.hosts[0]"
@@ -258,7 +262,7 @@ resource "helm_release" "kube_prometheus_stack" {
   wait    = true
   timeout = 600
 
-  depends_on = [helm_release.ingress_nginx]
+  depends_on = [helm_release.traefik]
 }
 
 # ── GitHub Actions Runner Controller (ARC) ─────────────────────────────────────

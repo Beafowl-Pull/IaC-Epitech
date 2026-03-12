@@ -52,18 +52,18 @@ provider "google-beta" {
 }
 
 provider "kubernetes" {
-  config_path = "~/.kube/config"
+  config_path = fileexists(pathexpand("~/.kube/config")) ? pathexpand("~/.kube/config") : null
 }
 
 provider "helm" {
   kubernetes {
-    config_path = "~/.kube/config"
+    config_path = fileexists(pathexpand("~/.kube/config")) ? pathexpand("~/.kube/config") : null
   }
 }
 
 provider "kubectl" {
-  config_path      = "~/.kube/config"
-  load_config_file = true
+  config_path      = fileexists(pathexpand("~/.kube/config")) ? pathexpand("~/.kube/config") : null
+  load_config_file = fileexists(pathexpand("~/.kube/config"))
 }
 
 # ── APIs ───────────────────────────────────────────────────────────────────────

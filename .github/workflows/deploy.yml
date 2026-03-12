@@ -124,6 +124,12 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
+      - name: Get kubeconfig
+        run: |
+          gcloud container clusters get-credentials task-manager-staging \
+            --region europe-west1 \
+            --project iac-epitech-489911
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -205,6 +211,12 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Get kubeconfig
+        run: |
+          gcloud container clusters get-credentials task-manager-prod \
+            --region europe-west1 \
+            --project iac-epitech-489911
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

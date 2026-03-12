@@ -51,29 +51,19 @@ provider "google-beta" {
   region  = var.region
 }
 
-# Kubernetes + Helm providers are configured after GKE cluster is created
-# using the cluster's endpoint and credentials.
-data "google_client_config" "default" {}
-
 provider "kubernetes" {
-  host                   = "https://${module.gke.cluster_endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(module.gke.cluster_ca_certificate)
+  config_path = "~/.kube/config"
 }
 
 provider "helm" {
   kubernetes {
-    host                   = "https://${module.gke.cluster_endpoint}"
-    token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(module.gke.cluster_ca_certificate)
+    config_path = "~/.kube/config"
   }
 }
 
 provider "kubectl" {
-  host                   = "https://${module.gke.cluster_endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(module.gke.cluster_ca_certificate)
-  load_config_file       = false
+  config_path      = "~/.kube/config"
+  load_config_file = true
 }
 
 # ── APIs ───────────────────────────────────────────────────────────────────────

@@ -1,5 +1,10 @@
 # ── Workload Identity Federation: GitHub Actions → GCP ────────────────────────
 
+import {
+  id = "projects/iac-epitech-489911/locations/global/workloadIdentityPools/github-actions-pool"
+  to = google_iam_workload_identity_pool.github
+}
+
 resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "github-actions-pool"
   display_name              = "GitHub Actions Pool"

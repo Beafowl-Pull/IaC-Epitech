@@ -1,7 +1,7 @@
 # ── Workload Identity Federation: GitHub Actions → GCP ────────────────────────
 
 resource "google_iam_workload_identity_pool" "github" {
-  workload_identity_pool_id = "github-actions-pool-v2"
+  workload_identity_pool_id = "github-actions-pool-v3"
   display_name              = "GitHub Actions Pool"
   description               = "Identity pool for GitHub Actions OIDC"
   disabled                  = false

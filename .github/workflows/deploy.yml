@@ -89,7 +89,7 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
             -var="github_pat=${{ secrets.GIT_PAT }}" \
             google_iam_workload_identity_pool.github \
-            projects/iac-epitech-489911/locations/global/workloadIdentityPools/github-actions-pool-v2
+            projects/iac-epitech-489911/locations/global/workloadIdentityPools/github-actions-pool-v3
 
       - name: Terraform apply — infra
         run: |

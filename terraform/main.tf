@@ -102,6 +102,22 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   depends_on = [google_project_service.servicenetworking]
 }
 
+# ── Cloud NAT (outbound internet for private nodes) ────────────────────────────
+
+resource "google_compute_router" "nat_router" {
+  name    = "${var.app_name}-${var.environment}-router"
+  region  = var.region
+  network = var.network
+}
+
+resource "google_compute_router_nat" "nat" {
+  name                               = "${var.app_name}-${var.environment}-nat"
+  router                             = google_compute_router.nat_router.name
+  region                             = var.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+}
+
 # ── Modules ────────────────────────────────────────────────────────────────────
 
 module "gke" {
@@ -115,6 +131,8 @@ module "gke" {
   node_pool_config = var.node_pool_config
   network          = var.network
   subnetwork       = var.subnetwork
+
+  depends_on = [google_compute_router_nat.nat]
 }
 
 module "cloudsql" {

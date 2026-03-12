@@ -14,14 +14,14 @@ spec:
     - Egress
 
   ingress:
-    # Allow traffic only from the nginx ingress controller
+    # Allow traffic only from the Traefik ingress controller
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace | default "ingress-nginx" }}
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace | default "traefik" }}
           podSelector:
             matchLabels:
-              app.kubernetes.io/name: ingress-nginx
+              app.kubernetes.io/name: traefik
       ports:
         - protocol: TCP
           port: 8443

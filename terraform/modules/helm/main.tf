@@ -30,6 +30,11 @@ resource "helm_release" "cert_manager" {
     value = "cert-manager"
   }
 
+  set {
+    name  = "startupapicheck.enabled"
+    value = "false"
+  }
+
   wait    = true
   timeout = 600
 }

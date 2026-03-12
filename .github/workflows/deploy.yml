@@ -52,15 +52,17 @@ jobs:
           docker push "${IMAGE}:${TAG}"
           docker push "${IMAGE}:latest"
 
-  staging-apply:
-    name: Deploy — staging
+  # ── Staging ──────────────────────────────────────────────────────────────────
+
+  staging-infra:
+    name: "Staging — phase 1 (infra)"
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     environment: staging
     needs: build-push
     steps:
       - uses: actions/checkout@v4
 
-      - name: Auth to GCP via Workload Identity Federation
+      - name: Auth to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
@@ -72,13 +74,22 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Terraform init (staging)
+      - name: Terraform init
         run: terraform init -backend-config="prefix=task-manager/staging"
         working-directory: terraform
 
-      - name: Terraform apply — phase 1 (cluster + db)
+      - name: Terraform apply — infra
         run: |
           terraform apply -auto-approve \
+            -target=google_project_service.secretmanager \
+            -target=google_project_service.servicenetworking \
+            -target=google_compute_global_address.private_ip_range \
+            -target=google_service_networking_connection.private_vpc_connection \
+            -target=google_compute_router.nat_router \
+            -target=google_compute_router_nat.nat \
+            -target=google_iam_workload_identity_pool.github \
+            -target=google_iam_workload_identity_pool_provider.github \
+            -target=google_service_account.github_actions \
             -target=module.gke \
             -target=module.cloudsql \
             -var-file="envs/staging/terraform.tfvars" \
@@ -88,7 +99,31 @@ jobs:
             -var="github_pat=${{ secrets.GIT_PAT }}"
         working-directory: terraform
 
-      - name: Terraform apply — phase 2 (helm workloads)
+  staging-helm:
+    name: "Staging — phase 2 (helm)"
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    environment: staging
+    needs: [build-push, staging-infra]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: terraform init -backend-config="prefix=task-manager/staging"
+        working-directory: terraform
+
+      - name: Terraform apply — helm
         run: |
           IMAGE_REPO=$(printf '%s/%s' "${{ env.REGISTRY }}" "${{ env.IMAGE_NAME }}" | tr -d '\r\n ')
           terraform apply -auto-approve \
@@ -101,15 +136,17 @@ jobs:
             -var="github_pat=${{ secrets.GIT_PAT }}"
         working-directory: terraform
 
-  prod-apply:
-    name: Deploy — prod
+  # ── Prod ─────────────────────────────────────────────────────────────────────
+
+  prod-infra:
+    name: "Prod — phase 1 (infra)"
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
     environment: prod
-    needs: [build-push, staging-apply]
+    needs: staging-helm
     steps:
       - uses: actions/checkout@v4
 
-      - name: Auth to GCP via Workload Identity Federation
+      - name: Auth to GCP
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
@@ -121,13 +158,22 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Terraform init (prod)
+      - name: Terraform init
         run: terraform init -backend-config="prefix=task-manager/prod"
         working-directory: terraform
 
-      - name: Terraform apply — phase 1 (cluster + db)
+      - name: Terraform apply — infra
         run: |
           terraform apply -auto-approve \
+            -target=google_project_service.secretmanager \
+            -target=google_project_service.servicenetworking \
+            -target=google_compute_global_address.private_ip_range \
+            -target=google_service_networking_connection.private_vpc_connection \
+            -target=google_compute_router.nat_router \
+            -target=google_compute_router_nat.nat \
+            -target=google_iam_workload_identity_pool.github \
+            -target=google_iam_workload_identity_pool_provider.github \
+            -target=google_service_account.github_actions \
             -target=module.gke \
             -target=module.cloudsql \
             -var-file="envs/prod/terraform.tfvars" \
@@ -137,7 +183,31 @@ jobs:
             -var="github_pat=${{ secrets.GIT_PAT }}"
         working-directory: terraform
 
-      - name: Terraform apply — phase 2 (helm workloads)
+  prod-helm:
+    name: "Prod — phase 2 (helm)"
+    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    environment: prod
+    needs: [build-push, prod-infra]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: terraform init -backend-config="prefix=task-manager/prod"
+        working-directory: terraform
+
+      - name: Terraform apply — helm
         run: |
           IMAGE_REPO=$(printf '%s/%s' "${{ env.REGISTRY }}" "${{ env.IMAGE_NAME }}" | tr -d '\r\n ')
           terraform apply -auto-approve \

@@ -61,6 +61,36 @@ provider "helm" {
   }
 }
 
+# ── APIs ───────────────────────────────────────────────────────────────────────
+
+resource "google_project_service" "secretmanager" {
+  service            = "secretmanager.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "servicenetworking" {
+  service            = "servicenetworking.googleapis.com"
+  disable_on_destroy = false
+}
+
+# ── Private Services Connection (required for Cloud SQL private IP) ─────────────
+
+resource "google_compute_global_address" "private_ip_range" {
+  name          = "private-ip-range"
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  prefix_length = 16
+  network       = "projects/${var.project_id}/global/networks/${var.network}"
+}
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network                 = "projects/${var.project_id}/global/networks/${var.network}"
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.private_ip_range.name]
+
+  depends_on = [google_project_service.servicenetworking]
+}
+
 # ── Modules ────────────────────────────────────────────────────────────────────
 
 module "gke" {
@@ -88,7 +118,7 @@ module "cloudsql" {
   network           = var.network
   deletion_protection = var.environment == "prod" ? true : false
 
-  depends_on = [module.gke]
+  depends_on = [module.gke, google_service_networking_connection.private_vpc_connection, google_project_service.secretmanager]
 }
 
 module "helm" {

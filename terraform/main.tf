@@ -22,6 +22,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.14"
+    }
   }
 
   # Remote state — change bucket name to your own
@@ -59,6 +63,13 @@ provider "helm" {
     token                  = data.google_client_config.default.access_token
     cluster_ca_certificate = base64decode(module.gke.cluster_ca_certificate)
   }
+}
+
+provider "kubectl" {
+  host                   = "https://${module.gke.cluster_endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(module.gke.cluster_ca_certificate)
+  load_config_file       = false
 }
 
 # ── APIs ───────────────────────────────────────────────────────────────────────

@@ -37,58 +37,44 @@ resource "helm_release" "cert_manager" {
 
 # ── ClusterIssuers (Let's Encrypt staging + prod) ─────────────────────────────
 
-resource "kubernetes_manifest" "cluster_issuer_staging" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
-    metadata = {
-      name = "letsencrypt-staging"
-    }
-    spec = {
-      acme = {
-        server = "https://acme-staging-v02.api.letsencrypt.org/directory"
-        email  = var.letsencrypt_email
-        privateKeySecretRef = {
-          name = "letsencrypt-staging-account-key"
-        }
-        solvers = [{
-          http01 = {
-            ingress = {
-              ingressClassName = "nginx"
-            }
-          }
-        }]
-      }
-    }
-  }
+resource "kubectl_manifest" "cluster_issuer_staging" {
+  yaml_body = <<-YAML
+    apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    metadata:
+      name: letsencrypt-staging
+    spec:
+      acme:
+        server: https://acme-staging-v02.api.letsencrypt.org/directory
+        email: ${var.letsencrypt_email}
+        privateKeySecretRef:
+          name: letsencrypt-staging-account-key
+        solvers:
+          - http01:
+              ingress:
+                ingressClassName: nginx
+  YAML
 
   depends_on = [helm_release.cert_manager]
 }
 
-resource "kubernetes_manifest" "cluster_issuer_prod" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
-    metadata = {
-      name = "letsencrypt-prod"
-    }
-    spec = {
-      acme = {
-        server = "https://acme-v02.api.letsencrypt.org/directory"
-        email  = var.letsencrypt_email
-        privateKeySecretRef = {
-          name = "letsencrypt-prod-account-key"
-        }
-        solvers = [{
-          http01 = {
-            ingress = {
-              ingressClassName = "nginx"
-            }
-          }
-        }]
-      }
-    }
-  }
+resource "kubectl_manifest" "cluster_issuer_prod" {
+  yaml_body = <<-YAML
+    apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    metadata:
+      name: letsencrypt-prod
+    spec:
+      acme:
+        server: https://acme-v02.api.letsencrypt.org/directory
+        email: ${var.letsencrypt_email}
+        privateKeySecretRef:
+          name: letsencrypt-prod-account-key
+        solvers:
+          - http01:
+              ingress:
+                ingressClassName: nginx
+  YAML
 
   depends_on = [helm_release.cert_manager]
 }
@@ -229,8 +215,8 @@ resource "helm_release" "task_manager" {
   depends_on = [
     helm_release.cert_manager,
     helm_release.ingress_nginx,
-    kubernetes_manifest.cluster_issuer_prod,
-    kubernetes_manifest.cluster_issuer_staging,
+    kubectl_manifest.cluster_issuer_prod,
+    kubectl_manifest.cluster_issuer_staging,
   ]
 }
 

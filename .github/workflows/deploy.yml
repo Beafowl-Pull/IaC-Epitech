@@ -122,7 +122,7 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Install gke-gcloud-auth-plugin
-        run: gcloud components install gke-gcloud-auth-plugin --quiet
+        run: sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin
 
       - name: Get kubeconfig
         run: |
@@ -223,7 +223,7 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Install gke-gcloud-auth-plugin
-        run: gcloud components install gke-gcloud-auth-plugin --quiet
+        run: sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin
 
       - name: Get kubeconfig
         run: |

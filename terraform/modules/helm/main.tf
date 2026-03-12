@@ -35,8 +35,14 @@ resource "helm_release" "cert_manager" {
     value = "false"
   }
 
-  wait    = true
-  timeout = 600
+  wait             = true
+  wait_for_jobs    = true
+  timeout          = 600
+}
+
+resource "time_sleep" "wait_for_cert_manager_crds" {
+  create_duration = "30s"
+  depends_on      = [helm_release.cert_manager]
 }
 
 # ── ClusterIssuers (Let's Encrypt staging + prod) ─────────────────────────────
@@ -59,7 +65,7 @@ resource "kubectl_manifest" "cluster_issuer_staging" {
                 ingressClassName: traefik
   YAML
 
-  depends_on = [helm_release.cert_manager]
+  depends_on = [time_sleep.wait_for_cert_manager_crds]
 }
 
 resource "kubectl_manifest" "cluster_issuer_prod" {
@@ -80,7 +86,7 @@ resource "kubectl_manifest" "cluster_issuer_prod" {
                 ingressClassName: traefik
   YAML
 
-  depends_on = [helm_release.cert_manager]
+  depends_on = [time_sleep.wait_for_cert_manager_crds]
 }
 
 # ── Traefik ────────────────────────────────────────────────────────────────────

@@ -54,6 +54,8 @@ resource "null_resource" "cluster_issuers" {
 
   provisioner "local-exec" {
     command = <<-EOF
+      kubectl wait --for=condition=established --timeout=300s \
+        crd/clusterissuers.cert-manager.io && \
       kubectl apply -f - <<YAML
       ---
       apiVersion: cert-manager.io/v1

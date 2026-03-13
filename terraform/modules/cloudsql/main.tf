@@ -29,7 +29,7 @@ resource "google_sql_database_instance" "main" {
     # Private IP only — no public endpoint
     ip_configuration {
       ipv4_enabled                                  = false
-      private_network                               = data.google_compute_network.main.id
+      private_network                               = "projects/${var.project_id}/global/networks/${var.network}"
       enable_private_path_for_google_cloud_services = true
     }
 
@@ -94,8 +94,3 @@ resource "google_secret_manager_secret_version" "db_password" {
   secret_data = random_password.db_password.result
 }
 
-# ── Network data source ────────────────────────────────────────────────────────
-
-data "google_compute_network" "main" {
-  name = var.network
-}

@@ -64,13 +64,15 @@ import_if_missing \
   google_service_networking_connection.private_vpc_connection \
   "projects/${PROJECT_ID}/global/networks/default:servicenetworking.googleapis.com"
 
-import_if_missing \
-  google_compute_router.nat_router \
-  "projects/${PROJECT_ID}/regions/${REGION}/routers/${ROUTER_NAME}"
+if [ "${ENV}" = "staging" ]; then
+  import_if_missing \
+    "google_compute_router.nat_router[0]" \
+    "projects/${PROJECT_ID}/regions/${REGION}/routers/${ROUTER_NAME}"
 
-import_if_missing \
-  google_compute_router_nat.nat \
-  "${PROJECT_ID}/${REGION}/${ROUTER_NAME}/${NAT_NAME}"
+  import_if_missing \
+    "google_compute_router_nat.nat[0]" \
+    "${PROJECT_ID}/${REGION}/${ROUTER_NAME}/${NAT_NAME}"
+fi
 
 import_if_missing \
   google_project_service.secretmanager \

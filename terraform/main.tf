@@ -103,14 +103,16 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 # ── Cloud NAT (outbound internet for private nodes) ────────────────────────────
 
 resource "google_compute_router" "nat_router" {
+  count   = var.create_nat ? 1 : 0
   name    = "${var.app_name}-${var.environment}-router"
   region  = var.region
   network = var.network
 }
 
 resource "google_compute_router_nat" "nat" {
+  count                              = var.create_nat ? 1 : 0
   name                               = "${var.app_name}-${var.environment}-nat"
-  router                             = google_compute_router.nat_router.name
+  router                             = google_compute_router.nat_router[0].name
   region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
@@ -130,7 +132,7 @@ module "gke" {
   network          = var.network
   subnetwork       = var.subnetwork
 
-  depends_on = [google_compute_router_nat.nat]
+  depends_on = [google_compute_router_nat.nat, google_compute_router.nat_router]
 }
 
 module "cloudsql" {

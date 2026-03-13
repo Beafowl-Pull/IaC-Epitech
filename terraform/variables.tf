@@ -58,6 +58,12 @@ variable "cluster_issuer" {
 
 # ── Network ────────────────────────────────────────────────────────────────────
 
+variable "create_nat" {
+  description = "Whether to create a Cloud NAT router. Set to false if one already exists for the network (e.g. prod shares staging's NAT)."
+  type        = bool
+  default     = true
+}
+
 variable "network" {
   description = "VPC network name"
   type        = string

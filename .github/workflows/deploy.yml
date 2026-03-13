@@ -136,6 +136,17 @@ jobs:
             --region europe-west1 \
             --project iac-epitech-489911
 
+      - name: Wait for cert-manager CRDs
+        run: |
+          kubectl wait --for=condition=established --timeout=120s \
+            crd/clusterissuers.cert-manager.io \
+            crd/certificates.cert-manager.io \
+            crd/certificaterequests.cert-manager.io || true
+          kubectl wait --for=condition=available --timeout=120s \
+            deployment/cert-manager \
+            deployment/cert-manager-webhook \
+            -n cert-manager || true
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -242,6 +253,17 @@ jobs:
           gcloud container clusters get-credentials task-manager-prod \
             --region europe-west1 \
             --project iac-epitech-489911
+
+      - name: Wait for cert-manager CRDs
+        run: |
+          kubectl wait --for=condition=established --timeout=120s \
+            crd/clusterissuers.cert-manager.io \
+            crd/certificates.cert-manager.io \
+            crd/certificaterequests.cert-manager.io || true
+          kubectl wait --for=condition=available --timeout=120s \
+            deployment/cert-manager \
+            deployment/cert-manager-webhook \
+            -n cert-manager || true
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3

@@ -41,7 +41,7 @@ resource "helm_release" "cert_manager" {
 }
 
 resource "time_sleep" "wait_for_cert_manager_crds" {
-  create_duration = "30s"
+  create_duration = "90s"
   depends_on      = [helm_release.cert_manager]
 }
 

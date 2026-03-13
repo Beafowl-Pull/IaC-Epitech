@@ -135,6 +135,7 @@ spec:
           secret:
             # cert-manager populates this secret automatically via the Ingress annotation
             secretName: {{ if .Values.tls.existingSecret }}{{ .Values.tls.existingSecret }}{{ else }}{{ include "task-manager.fullname" . }}-tls{{ end }}
+            optional: true
         {{- if .Values.cloudSQL.enabled }}
         - name: cloudsql-socket
           emptyDir: {}

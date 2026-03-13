@@ -13,6 +13,12 @@ resource "google_sql_database_instance" "main" {
 
   deletion_protection = var.deletion_protection
 
+  lifecycle {
+    ignore_changes = [
+      settings[0].disk_size, # autoresize changes this
+    ]
+  }
+
   settings {
     tier              = var.environment == "prod" ? "db-custom-2-7680" : "db-f1-micro"
     availability_type = var.environment == "prod" ? "REGIONAL" : "ZONAL"

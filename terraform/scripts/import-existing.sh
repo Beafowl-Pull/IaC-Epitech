@@ -25,6 +25,8 @@ NODES_SA="${CLUSTER_NAME}-nodes@${PROJECT_ID}.iam.gserviceaccount.com"
 APP_SA="${CLUSTER_NAME}-app@${PROJECT_ID}.iam.gserviceaccount.com"
 DB_INSTANCE="${CLUSTER_NAME}-db"
 DB_SECRET="${APP_NAME}-${ENV}-db-password"
+DB_NAME="tasks"
+DB_USER="taskuser"
 ROUTER_NAME="${APP_NAME}-${ENV}-router"
 NAT_NAME="${APP_NAME}-${ENV}-nat"
 
@@ -99,5 +101,13 @@ import_if_missing \
 import_if_missing \
   module.cloudsql.google_secret_manager_secret.db_password \
   "projects/${PROJECT_NUMBER}/secrets/${DB_SECRET}"
+
+import_if_missing \
+  module.cloudsql.google_sql_database.main \
+  "${DB_INSTANCE}/${DB_NAME}"
+
+import_if_missing \
+  module.cloudsql.google_sql_user.main \
+  "${DB_INSTANCE}/${DB_USER}"
 
 echo "==> Import step complete"

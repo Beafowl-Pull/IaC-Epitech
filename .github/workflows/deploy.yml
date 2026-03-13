@@ -159,6 +159,7 @@ jobs:
         run: |
           IMAGE_REPO=$(printf '%s/%s' "${{ env.REGISTRY }}" "${{ env.IMAGE_NAME }}" | tr -d '\r\n ')
           terraform apply -auto-approve \
+            -target=module.helm \
             -var-file="envs/staging/terraform.tfvars" \
             -var="image_tag=${{ needs.build-push.outputs.image_tag }}" \
             -var="image_repo=${IMAGE_REPO}" \

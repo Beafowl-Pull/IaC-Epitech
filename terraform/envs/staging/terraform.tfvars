@@ -9,12 +9,12 @@ environment = "staging"
 app_name    = "task-manager"
 namespace   = "task-manager"
 
-domain      = "tasks-staging.example.com"
+domain      = "tasks-staging.aureagames.com"
 image_repo  = "europe-west1-docker.pkg.dev/iac-epitech-489911/task-manager/task-manager"
 image_tag   = "latest"
 
 cluster_issuer    = "letsencrypt-staging"
-letsencrypt_email = "devops@example.com"
+letsencrypt_email = "matheo@aureagames.com"
 github_repo       = "Beafowl-Pull/IaC-Epitech"
 
 network    = "default"

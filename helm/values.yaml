@@ -20,7 +20,7 @@ ingress:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
   hosts:
-    - host: tasks.aureagames.com
+    - host: tasks-staging.aureagames.com
       paths:
         - path: /
           pathType: Prefix

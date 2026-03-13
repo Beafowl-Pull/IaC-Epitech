@@ -40,59 +40,8 @@ resource "helm_release" "cert_manager" {
   timeout          = 600
 }
 
-resource "time_sleep" "wait_for_cert_manager_crds" {
-  create_duration = "90s"
-  depends_on      = [helm_release.cert_manager]
-}
-
-# ── ClusterIssuers (Let's Encrypt staging + prod) ─────────────────────────────
-
-resource "null_resource" "cluster_issuers" {
-  triggers = {
-    email = var.letsencrypt_email
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOF
-      kubectl wait --for=condition=established --timeout=300s \
-        crd/clusterissuers.cert-manager.io && \
-      kubectl apply -f - <<YAML
-      ---
-      apiVersion: cert-manager.io/v1
-      kind: ClusterIssuer
-      metadata:
-        name: letsencrypt-staging
-      spec:
-        acme:
-          server: https://acme-staging-v02.api.letsencrypt.org/directory
-          email: ${var.letsencrypt_email}
-          privateKeySecretRef:
-            name: letsencrypt-staging-account-key
-          solvers:
-            - http01:
-                ingress:
-                  ingressClassName: traefik
-      ---
-      apiVersion: cert-manager.io/v1
-      kind: ClusterIssuer
-      metadata:
-        name: letsencrypt-prod
-      spec:
-        acme:
-          server: https://acme-v02.api.letsencrypt.org/directory
-          email: ${var.letsencrypt_email}
-          privateKeySecretRef:
-            name: letsencrypt-prod-account-key
-          solvers:
-            - http01:
-                ingress:
-                  ingressClassName: traefik
-      YAML
-    EOF
-  }
-
-  depends_on = [time_sleep.wait_for_cert_manager_crds]
-}
+# ClusterIssuers are applied via kubectl in the CI pipeline (staging-helm/prod-helm jobs)
+# after cert-manager is confirmed running. See .github/workflows/deploy.yml.
 
 # ── Traefik ────────────────────────────────────────────────────────────────────
 
@@ -235,7 +184,6 @@ resource "helm_release" "task_manager" {
   depends_on = [
     helm_release.cert_manager,
     helm_release.traefik,
-    null_resource.cluster_issuers,
   ]
 }
 

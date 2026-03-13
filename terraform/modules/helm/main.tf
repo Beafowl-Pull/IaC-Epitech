@@ -47,48 +47,49 @@ resource "time_sleep" "wait_for_cert_manager_crds" {
 
 # ── ClusterIssuers (Let's Encrypt staging + prod) ─────────────────────────────
 
-resource "kubectl_manifest" "cluster_issuer_staging" {
-  yaml_body = <<-YAML
-    apiVersion: cert-manager.io/v1
-    kind: ClusterIssuer
-    metadata:
-      name: letsencrypt-staging
-    spec:
-      acme:
-        server: https://acme-staging-v02.api.letsencrypt.org/directory
-        email: ${var.letsencrypt_email}
-        privateKeySecretRef:
-          name: letsencrypt-staging-account-key
-        solvers:
-          - http01:
-              ingress:
-                ingressClassName: traefik
-  YAML
+resource "null_resource" "cluster_issuers" {
+  triggers = {
+    email = var.letsencrypt_email
+  }
 
-  server_side_apply = true
-  depends_on        = [time_sleep.wait_for_cert_manager_crds]
-}
+  provisioner "local-exec" {
+    command = <<-EOF
+      kubectl apply -f - <<YAML
+      ---
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-staging
+      spec:
+        acme:
+          server: https://acme-staging-v02.api.letsencrypt.org/directory
+          email: ${var.letsencrypt_email}
+          privateKeySecretRef:
+            name: letsencrypt-staging-account-key
+          solvers:
+            - http01:
+                ingress:
+                  ingressClassName: traefik
+      ---
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-prod
+      spec:
+        acme:
+          server: https://acme-v02.api.letsencrypt.org/directory
+          email: ${var.letsencrypt_email}
+          privateKeySecretRef:
+            name: letsencrypt-prod-account-key
+          solvers:
+            - http01:
+                ingress:
+                  ingressClassName: traefik
+      YAML
+    EOF
+  }
 
-resource "kubectl_manifest" "cluster_issuer_prod" {
-  yaml_body = <<-YAML
-    apiVersion: cert-manager.io/v1
-    kind: ClusterIssuer
-    metadata:
-      name: letsencrypt-prod
-    spec:
-      acme:
-        server: https://acme-v02.api.letsencrypt.org/directory
-        email: ${var.letsencrypt_email}
-        privateKeySecretRef:
-          name: letsencrypt-prod-account-key
-        solvers:
-          - http01:
-              ingress:
-                ingressClassName: traefik
-  YAML
-
-  server_side_apply = true
-  depends_on        = [time_sleep.wait_for_cert_manager_crds]
+  depends_on = [time_sleep.wait_for_cert_manager_crds]
 }
 
 # ── Traefik ────────────────────────────────────────────────────────────────────
@@ -232,8 +233,7 @@ resource "helm_release" "task_manager" {
   depends_on = [
     helm_release.cert_manager,
     helm_release.traefik,
-    kubectl_manifest.cluster_issuer_prod,
-    kubectl_manifest.cluster_issuer_staging,
+    null_resource.cluster_issuers,
   ]
 }
 

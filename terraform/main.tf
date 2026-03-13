@@ -30,6 +30,10 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.11"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.0"
+    }
   }
 
   # Remote state — change bucket name to your own

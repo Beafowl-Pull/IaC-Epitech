@@ -19,6 +19,7 @@ github_repo       = "Beafowl-Pull/IaC-Epitech"
 
 network    = "default"
 subnetwork = "default"
+create_nat = false
 
 node_pool_config = {
   machine_type   = "e2-standard-4"

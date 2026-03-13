@@ -107,6 +107,16 @@ jobs:
             -var="github_pat=${{ secrets.GIT_PAT }}"
         working-directory: terraform
 
+      - name: Sync Cloud SQL password from Secret Manager
+        run: |
+          PASSWORD=$(gcloud secrets versions access latest \
+            --secret="task-manager-staging-db-password" \
+            --project=iac-epitech-489911)
+          gcloud sql users set-password taskuser \
+            --instance=task-manager-staging-db \
+            --password="${PASSWORD}" \
+            --project=iac-epitech-489911
+
   staging-helm:
     name: "Staging — phase 2 (helm)"
     runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
@@ -249,6 +259,16 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
             -var="github_pat=${{ secrets.GIT_PAT }}"
         working-directory: terraform
+
+      - name: Sync Cloud SQL password from Secret Manager
+        run: |
+          PASSWORD=$(gcloud secrets versions access latest \
+            --secret="task-manager-prod-db-password" \
+            --project=iac-epitech-489911)
+          gcloud sql users set-password taskuser \
+            --instance=task-manager-prod-db \
+            --password="${PASSWORD}" \
+            --project=iac-epitech-489911
 
   prod-helm:
     name: "Prod — phase 2 (helm)"

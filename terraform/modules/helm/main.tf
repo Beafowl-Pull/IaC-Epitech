@@ -96,10 +96,10 @@ resource "helm_release" "task_manager" {
   namespace = kubernetes_namespace.app.metadata[0].name
 
   # Rolling upgrades, not full re-creates
-  atomic          = true
-  cleanup_on_fail = true
+  atomic          = false
+  cleanup_on_fail = false
   wait            = true
-  timeout         = 300
+  timeout         = 600
 
   # ── Image ──────────────────────────────────────────────────────────────────
   set {

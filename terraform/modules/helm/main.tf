@@ -65,7 +65,8 @@ resource "kubectl_manifest" "cluster_issuer_staging" {
                 ingressClassName: traefik
   YAML
 
-  depends_on = [time_sleep.wait_for_cert_manager_crds]
+  server_side_apply = true
+  depends_on        = [time_sleep.wait_for_cert_manager_crds]
 }
 
 resource "kubectl_manifest" "cluster_issuer_prod" {
@@ -86,7 +87,8 @@ resource "kubectl_manifest" "cluster_issuer_prod" {
                 ingressClassName: traefik
   YAML
 
-  depends_on = [time_sleep.wait_for_cert_manager_crds]
+  server_side_apply = true
+  depends_on        = [time_sleep.wait_for_cert_manager_crds]
 }
 
 # ── Traefik ────────────────────────────────────────────────────────────────────

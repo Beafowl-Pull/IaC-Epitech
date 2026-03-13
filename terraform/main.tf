@@ -100,18 +100,6 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   depends_on = [google_project_service.servicenetworking]
 }
 
-# ── State migration: single → count-based NAT resources ───────────────────────
-
-moved {
-  from = google_compute_router.nat_router
-  to   = google_compute_router.nat_router[0]
-}
-
-moved {
-  from = google_compute_router_nat.nat
-  to   = google_compute_router_nat.nat[0]
-}
-
 # ── Cloud NAT (outbound internet for private nodes) ────────────────────────────
 
 resource "google_compute_router" "nat_router" {

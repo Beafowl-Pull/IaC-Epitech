@@ -167,7 +167,7 @@ jobs:
           spec:
             acme:
               server: https://acme-staging-v02.api.letsencrypt.org/directory
-              email: devops@example.com
+              email: matheo@aureagames.com
               privateKeySecretRef:
                 name: letsencrypt-staging-account-key
               solvers:
@@ -182,7 +182,7 @@ jobs:
           spec:
             acme:
               server: https://acme-v02.api.letsencrypt.org/directory
-              email: devops@example.com
+              email: matheo@aureagames.com
               privateKeySecretRef:
                 name: letsencrypt-prod-account-key
               solvers:
@@ -334,7 +334,7 @@ jobs:
           spec:
             acme:
               server: https://acme-staging-v02.api.letsencrypt.org/directory
-              email: devops@example.com
+              email: matheo@aureagames.com
               privateKeySecretRef:
                 name: letsencrypt-staging-account-key
               solvers:
@@ -349,7 +349,7 @@ jobs:
           spec:
             acme:
               server: https://acme-v02.api.letsencrypt.org/directory
-              email: devops@example.com
+              email: matheo@aureagames.com
               privateKeySecretRef:
                 name: letsencrypt-prod-account-key
               solvers:

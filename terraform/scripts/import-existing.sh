@@ -95,6 +95,10 @@ import_if_missing \
   module.gke.google_container_cluster.main \
   "projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER_NAME}"
 
+import_if_missing \
+  module.gke.google_container_node_pool.main \
+  "projects/${PROJECT_ID}/locations/${REGION}/clusters/${CLUSTER_NAME}/nodePools/${CLUSTER_NAME}-node-pool"
+
 # ── Cloud SQL ─────────────────────────────────────────────────────────────────
 import_if_missing \
   module.cloudsql.google_sql_database_instance.main \

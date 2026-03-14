@@ -72,7 +72,7 @@ resource "google_container_cluster" "main" {
   deletion_protection = var.environment == "prod" ? true : false
 
   lifecycle {
-    ignore_changes = [initial_node_count, node_config]
+    ignore_changes = [initial_node_count, node_config, private_cluster_config]
   }
 
   timeouts {

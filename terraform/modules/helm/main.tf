@@ -269,6 +269,23 @@ resource "helm_release" "arc_runner_set" {
     name  = "template.spec.nodeSelector.environment"
     value = var.environment
   }
+  set {
+    name  = "template.spec.nodeSelector.node-pool"
+    value = "runner"
+  }
+
+  set {
+    name  = "template.spec.tolerations[0].key"
+    value = "dedicated"
+  }
+  set {
+    name  = "template.spec.tolerations[0].value"
+    value = "runner"
+  }
+  set {
+    name  = "template.spec.tolerations[0].effect"
+    value = "NoSchedule"
+  }
 
   depends_on = [helm_release.arc_controller]
 }

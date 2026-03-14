@@ -129,6 +129,7 @@ module "gke" {
   environment  = var.environment
 
   node_pool_config       = var.node_pool_config
+  runner_pool_config     = var.runner_pool_config
   network                = var.network
   subnetwork             = var.subnetwork
   master_ipv4_cidr_block = var.master_ipv4_cidr_block

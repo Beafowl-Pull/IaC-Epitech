@@ -1,0 +1,76 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "task-manager.fullname" . }}
+  labels:
+    {{- include "task-manager.labels" . | nindent 4 }}
+    release: monitoring
+spec:
+  groups:
+    - name: task-manager.latency
+      rules:
+        - alert: HighRequestLatency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(http_request_duration_seconds_bucket{job="{{ include "task-manager.fullname" . }}"}[5m])) by (le)
+            ) > 1
+          for: 5m
+          labels:
+            severity: warning
+            app: {{ include "task-manager.name" . }}
+          annotations:
+            summary: "High p99 request latency on {{ include "task-manager.fullname" . }}"
+            description: "The 99th percentile request latency is above 1s for more than 5 minutes (current value: {{ "{{" }} $value {{ "}}" }}s)."
+
+    - name: task-manager.errors
+      rules:
+        - alert: HighErrorRate
+          expr: |
+            sum(rate(http_requests_total{job="{{ include "task-manager.fullname" . }}", status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="{{ include "task-manager.fullname" . }}"}[5m])) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            app: {{ include "task-manager.name" . }}
+          annotations:
+            summary: "High 5xx error rate on {{ include "task-manager.fullname" . }}"
+            description: "More than 5% of requests are returning 5xx errors for more than 5 minutes (current value: {{ "{{" }} $value | humanizePercentage {{ "}}" }})."
+
+    - name: task-manager.availability
+      rules:
+        - alert: PodNotReady
+          expr: |
+            kube_pod_status_ready{
+              namespace="{{ .Release.Namespace }}",
+              pod=~"{{ include "task-manager.fullname" . }}-.*",
+              condition="true"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+            app: {{ include "task-manager.name" . }}
+          annotations:
+            summary: "Pod {{ "{{" }} $labels.pod {{ "}}" }} is not ready"
+            description: "Pod {{ "{{" }} $labels.pod {{ "}}" }} in namespace {{ "{{" }} $labels.namespace {{ "}}" }} has been in a non-ready state for more than 5 minutes."
+
+    - name: task-manager.scaling
+      rules:
+        - alert: HPAAtMaxReplicas
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{
+              namespace="{{ .Release.Namespace }}",
+              horizontalpodautoscaler="{{ include "task-manager.fullname" . }}"
+            }
+            >=
+            kube_horizontalpodautoscaler_spec_max_replicas{
+              namespace="{{ .Release.Namespace }}",
+              horizontalpodautoscaler="{{ include "task-manager.fullname" . }}"
+            }
+          for: 5m
+          labels:
+            severity: warning
+            app: {{ include "task-manager.name" . }}
+          annotations:
+            summary: "HPA {{ include "task-manager.fullname" . }} is at maximum replicas"
+            description: "The HPA for {{ include "task-manager.fullname" . }} has been at its maximum replica count for more than 5 minutes, indicating sustained scaling pressure."

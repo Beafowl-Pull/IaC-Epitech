@@ -133,6 +133,60 @@ resource "google_container_node_pool" "main" {
   }
 }
 
+# ── Runner Node Pool (dedicated for ARC runners) ──────────────────────────────
+
+resource "google_container_node_pool" "runners" {
+  name     = "${var.cluster_name}-runner-pool"
+  cluster  = google_container_cluster.main.name
+  location = var.region
+
+  autoscaling {
+    min_node_count = var.runner_pool_config.min_node_count
+    max_node_count = var.runner_pool_config.max_node_count
+  }
+
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+
+  node_config {
+    machine_type = var.runner_pool_config.machine_type
+    disk_size_gb = var.runner_pool_config.disk_size_gb
+    disk_type    = var.runner_pool_config.disk_type
+
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+
+    service_account = google_service_account.gke_nodes.email
+
+    shielded_instance_config {
+      enable_secure_boot          = true
+      enable_integrity_monitoring = true
+    }
+
+    labels = {
+      environment = var.environment
+      node-pool   = "runner"
+    }
+
+    taint {
+      key    = "dedicated"
+      value  = "runner"
+      effect = "NO_SCHEDULE"
+    }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 # ── Service Account for GKE nodes ─────────────────────────────────────────────
 
 resource "google_service_account" "gke_nodes" {

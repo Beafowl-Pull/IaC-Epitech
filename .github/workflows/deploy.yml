@@ -86,11 +86,11 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
             -var="github_pat=${{ secrets.GIT_PAT }}"
 
-      - name: Migrate NAT state addresses (idempotent)
+      - name: Remove stale non-indexed NAT state entries (idempotent)
         working-directory: terraform
         run: |
-          terraform state mv 'google_compute_router.nat_router' 'google_compute_router.nat_router[0]' || true
-          terraform state mv 'google_compute_router_nat.nat' 'google_compute_router_nat.nat[0]' || true
+          terraform state rm 'google_compute_router.nat_router' || true
+          terraform state rm 'google_compute_router_nat.nat' || true
 
       - name: Terraform apply — infra
         run: |

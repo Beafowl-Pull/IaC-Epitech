@@ -23,7 +23,7 @@ env:
 jobs:
   build-push:
     name: Build & push Docker image
-    runs-on: ${{ vars.RUNNER_LABEL || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.image_tag }}
     steps:

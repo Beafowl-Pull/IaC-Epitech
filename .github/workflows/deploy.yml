@@ -159,6 +159,33 @@ jobs:
         run: terraform init -backend-config="prefix=task-manager/staging"
         working-directory: terraform
 
+      - name: Import existing helm resources (idempotent)
+        working-directory: terraform
+        run: |
+          import_if_missing() {
+            local resource="$1"; local id="$2"
+            if terraform state show "${resource}" > /dev/null 2>&1; then
+              echo "  [skip] ${resource}"
+            else
+              echo "  [import] ${resource}"
+              terraform import \
+                -var-file="envs/staging/terraform.tfvars" \
+                -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+                -var="api_password=${{ secrets.API_PASSWORD }}" \
+                -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+                -var="github_pat=${{ secrets.GIT_PAT }}" \
+                -var="image_tag=placeholder" \
+                "${resource}" "${id}" || echo "  [warn] import failed, may not exist yet"
+            fi
+          }
+          import_if_missing module.helm.kubernetes_namespace.app task-manager
+          import_if_missing module.helm.helm_release.cert_manager cert-manager/cert-manager
+          import_if_missing module.helm.helm_release.traefik traefik/traefik
+          import_if_missing module.helm.helm_release.task_manager task-manager/task-manager
+          import_if_missing module.helm.helm_release.kube_prometheus_stack monitoring/monitoring
+          import_if_missing module.helm.helm_release.arc_controller arc-systems/arc
+          import_if_missing module.helm.helm_release.arc_runner_set arc-runners/arc-runner-set
+
       - name: Apply ClusterIssuers
         run: |
           kubectl wait --for=condition=established --timeout=300s \
@@ -310,6 +337,33 @@ jobs:
       - name: Terraform init
         run: terraform init -backend-config="prefix=task-manager/prod"
         working-directory: terraform
+
+      - name: Import existing helm resources (idempotent)
+        working-directory: terraform
+        run: |
+          import_if_missing() {
+            local resource="$1"; local id="$2"
+            if terraform state show "${resource}" > /dev/null 2>&1; then
+              echo "  [skip] ${resource}"
+            else
+              echo "  [import] ${resource}"
+              terraform import \
+                -var-file="envs/prod/terraform.tfvars" \
+                -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+                -var="api_password=${{ secrets.API_PASSWORD }}" \
+                -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+                -var="github_pat=${{ secrets.GIT_PAT }}" \
+                -var="image_tag=placeholder" \
+                "${resource}" "${id}" || echo "  [warn] import failed, may not exist yet"
+            fi
+          }
+          import_if_missing module.helm.kubernetes_namespace.app task-manager
+          import_if_missing module.helm.helm_release.cert_manager cert-manager/cert-manager
+          import_if_missing module.helm.helm_release.traefik traefik/traefik
+          import_if_missing module.helm.helm_release.task_manager task-manager/task-manager
+          import_if_missing module.helm.helm_release.kube_prometheus_stack monitoring/monitoring
+          import_if_missing module.helm.helm_release.arc_controller arc-systems/arc
+          import_if_missing module.helm.helm_release.arc_runner_set arc-runners/arc-runner-set
 
       - name: Terraform apply — helm
         run: |

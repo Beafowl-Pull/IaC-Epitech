@@ -21,6 +21,69 @@ A production-ready REST API for task management, written in **Go**, deployed on 
 
 ---
 
+## Architecture
+
+```mermaid
+graph TB
+    Dev["👨‍💻 Developer"]
+    GH["GitHub\n(main / v* tag)"]
+
+    subgraph CI["GitHub Actions"]
+        WIF["Workload Identity\nFederation (OIDC)"]
+        Runners["ARC Self-hosted\nRunners (GKE)"]
+        GHHosted["GitHub-hosted\nRunners (fallback)"]
+    end
+
+    subgraph GCP["GCP Project — europe-west1"]
+        AR["Artifact Registry\n(Docker images)"]
+        SM["Secret Manager\n(DB password)"]
+
+        subgraph VPC["VPC — default network"]
+            NAT["Cloud NAT\n(staging only)"]
+
+            subgraph GKE["GKE Cluster (private nodes)"]
+                subgraph AppPool["Node Pool — App"]
+                    Traefik["Traefik\nLoadBalancer :443/:80"]
+                    App["task-manager pods\n(HPA 1–10)"]
+                    CM["cert-manager"]
+                    Prom["Prometheus\nGrafana"]
+                end
+                subgraph RunnerPool["Node Pool — Runners\n(taint: dedicated=runner)"]
+                    ARC["ARC Runner pods\n(scale 0→5)"]
+                end
+            end
+
+            subgraph PSC["Private Services Connection"]
+                SQL["Cloud SQL\nPostgreSQL 16\n(private IP only)"]
+            end
+        end
+
+        LE["Let's Encrypt\nACME"]
+    end
+
+    Internet["🌐 Internet"]
+
+    Dev -->|"git push / PR"| GH
+    GH -->|"trigger workflow"| WIF
+    WIF -->|"short-lived token\n(no SA keys)"| CI
+    CI -->|"docker push"| AR
+    CI -->|"terraform apply"| GKE
+    Runners -.->|"runs jobs"| CI
+    ARC -.->|"register / unregister"| GH
+
+    Internet -->|"HTTPS :443"| Traefik
+    Traefik -->|"HTTP :8080"| App
+    App -->|"SQL (private IP)"| SQL
+    CM -->|"ACME challenge"| LE
+    CM -->|"TLS cert"| Traefik
+    Prom -->|"scrape metrics"| App
+    Prom -->|"scrape metrics"| Traefik
+    NAT -->|"outbound internet\n(nodes → AR)"| Internet
+    App -->|"read secret"| SM
+```
+
+---
+
 ## API Reference
 
 All endpoints require:

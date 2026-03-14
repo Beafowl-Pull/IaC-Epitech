@@ -166,7 +166,10 @@ jobs:
       - name: Setup gcloud CLI (with GKE auth plugin)
         uses: google-github-actions/setup-gcloud@v2
         with:
-          install_components: "gke-gcloud-auth-plugin"
+          install_components: "gke-gcloud-auth-plugin,kubectl"
+
+      - name: Install Helm
+        run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
       - name: Get kubeconfig
         run: |
@@ -366,7 +369,10 @@ jobs:
       - name: Setup gcloud CLI (with GKE auth plugin)
         uses: google-github-actions/setup-gcloud@v2
         with:
-          install_components: "gke-gcloud-auth-plugin"
+          install_components: "gke-gcloud-auth-plugin,kubectl"
+
+      - name: Install Helm
+        run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
       - name: Get kubeconfig
         run: |

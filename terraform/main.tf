@@ -128,9 +128,10 @@ module "gke" {
   cluster_name = "${var.app_name}-${var.environment}"
   environment  = var.environment
 
-  node_pool_config = var.node_pool_config
-  network          = var.network
-  subnetwork       = var.subnetwork
+  node_pool_config       = var.node_pool_config
+  network                = var.network
+  subnetwork             = var.subnetwork
+  master_ipv4_cidr_block = var.master_ipv4_cidr_block
 
   depends_on = [google_compute_router_nat.nat, google_compute_router.nat_router]
 }

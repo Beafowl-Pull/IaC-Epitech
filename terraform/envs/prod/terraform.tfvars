@@ -17,9 +17,10 @@ cluster_issuer    = "letsencrypt-prod"
 letsencrypt_email = "matheo@aureagames.com"
 github_repo       = "Beafowl-Pull/IaC-Epitech"
 
-network    = "default"
-subnetwork = "default"
-create_nat = false
+network                = "default"
+subnetwork             = "default"
+create_nat             = false
+master_ipv4_cidr_block = "172.16.1.0/28"
 
 node_pool_config = {
   machine_type   = "e2-standard-4"

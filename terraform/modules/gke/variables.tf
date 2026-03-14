@@ -9,6 +9,11 @@ variable "namespace" {
   default = "task-manager"
 }
 
+variable "master_ipv4_cidr_block" {
+  type    = string
+  default = "172.16.0.0/28"
+}
+
 variable "node_pool_config" {
   type = object({
     machine_type   = string

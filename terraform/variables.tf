@@ -64,6 +64,12 @@ variable "create_nat" {
   default     = true
 }
 
+variable "master_ipv4_cidr_block" {
+  description = "CIDR for GKE master private subnet (must be /28, unique per cluster)"
+  type        = string
+  default     = "172.16.0.0/28"
+}
+
 variable "network" {
   description = "VPC network name"
   type        = string

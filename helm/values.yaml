@@ -19,6 +19,8 @@ ingress:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls.certresolver: letsencrypt
+    traefik.ingress.kubernetes.io/service.serversscheme: https
+    traefik.ingress.kubernetes.io/service.servers-transport: task-manager-transport@kubernetescrd
   hosts:
     - host: tasks-staging.aureagames.com
       paths:

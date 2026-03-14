@@ -24,7 +24,7 @@ spec:
               app.kubernetes.io/name: traefik
       ports:
         - protocol: TCP
-          port: 8443
+          port: 8080
 
     # Allow traffic from Prometheus scraper (metrics)
     {{- if .Values.networkPolicy.allowPrometheus }}
@@ -37,7 +37,7 @@ spec:
               app: prometheus
       ports:
         - protocol: TCP
-          port: 8443
+          port: 8080
     {{- end }}
 
   egress:

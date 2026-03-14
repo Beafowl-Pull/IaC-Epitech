@@ -40,8 +40,8 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
-            - name: https
-              containerPort: 8443
+            - name: http
+              containerPort: 8080
               protocol: TCP
           envFrom:
             - configMapRef:

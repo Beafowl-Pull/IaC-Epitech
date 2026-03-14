@@ -92,6 +92,25 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
             -var="github_pat=${{ secrets.GIT_PAT }}"
 
+      - name: Import GKE resources explicitly
+        working-directory: terraform
+        run: |
+          TF_VARS=(
+            -var-file=envs/staging/terraform.tfvars
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}"
+            -var="api_password=${{ secrets.API_PASSWORD }}"
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}"
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+          )
+          terraform state show module.gke.google_container_cluster.main \
+            || terraform import "${TF_VARS[@]}" \
+               module.gke.google_container_cluster.main \
+               "projects/iac-epitech-489911/locations/europe-west1/clusters/task-manager-staging"
+          terraform state show module.gke.google_container_node_pool.main \
+            || terraform import "${TF_VARS[@]}" \
+               module.gke.google_container_node_pool.main \
+               "projects/iac-epitech-489911/locations/europe-west1/clusters/task-manager-staging/nodePools/task-manager-staging-node-pool"
+
       - name: Terraform apply — infra
         run: |
           terraform apply -auto-approve \

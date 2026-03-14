@@ -12,6 +12,6 @@ spec:
     - port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
-      name: https
+      name: http
   selector:
     {{- include "task-manager.selectorLabels" . | nindent 4 }}

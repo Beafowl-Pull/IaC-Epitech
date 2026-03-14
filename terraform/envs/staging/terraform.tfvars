@@ -28,5 +28,13 @@ node_pool_config = {
   disk_type      = "pd-standard"
 }
 
+runner_pool_config = {
+  machine_type   = "e2-medium"
+  min_node_count = 0
+  max_node_count = 2
+  disk_size_gb   = 50
+  disk_type      = "pd-standard"
+}
+
 db_name = "tasks"
 db_user = "taskuser"

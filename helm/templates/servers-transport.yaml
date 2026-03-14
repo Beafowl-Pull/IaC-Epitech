@@ -1,7 +1,0 @@
-apiVersion: traefik.io/v1alpha1
-kind: ServersTransport
-metadata:
-  name: {{ include "task-manager.fullname" . }}-transport
-  namespace: {{ .Release.Namespace }}
-spec:
-  insecureSkipVerify: true

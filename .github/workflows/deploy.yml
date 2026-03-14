@@ -76,6 +76,12 @@ jobs:
         run: terraform init -backend-config="prefix=task-manager/staging"
         working-directory: terraform
 
+      - name: Remove stale non-indexed NAT state entries (idempotent)
+        working-directory: terraform
+        run: |
+          terraform state rm 'google_compute_router.nat_router' || true
+          terraform state rm 'google_compute_router_nat.nat' || true
+
       - name: Import existing resources (idempotent)
         working-directory: terraform
         run: |
@@ -85,12 +91,6 @@ jobs:
             -var="api_password=${{ secrets.API_PASSWORD }}" \
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
             -var="github_pat=${{ secrets.GIT_PAT }}"
-
-      - name: Remove stale non-indexed NAT state entries (idempotent)
-        working-directory: terraform
-        run: |
-          terraform state rm 'google_compute_router.nat_router' || true
-          terraform state rm 'google_compute_router_nat.nat' || true
 
       - name: Terraform apply — infra
         run: |

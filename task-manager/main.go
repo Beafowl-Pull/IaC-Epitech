@@ -66,17 +66,11 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8443"
+		port = "8080"
 	}
 
 	certFile := os.Getenv("TLS_CERT_FILE")
 	keyFile := os.Getenv("TLS_KEY_FILE")
-	if certFile == "" {
-		certFile = "/certs/tls.crt"
-	}
-	if keyFile == "" {
-		keyFile = "/certs/tls.key"
-	}
 
 	srv := &http.Server{
 		Addr:         ":" + port,
@@ -89,9 +83,16 @@ func main() {
 
 	// Graceful shutdown
 	go func() {
-		log.Printf("Starting HTTPS server on port %s", port)
-		if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed: %v", err)
+		if certFile != "" && keyFile != "" {
+			log.Printf("Starting HTTPS server on port %s", port)
+			if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Server failed: %v", err)
+			}
+		} else {
+			log.Printf("Starting HTTP server on port %s", port)
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("Server failed: %v", err)
+			}
 		}
 	}()
 

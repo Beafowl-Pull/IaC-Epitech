@@ -94,9 +94,6 @@ spec:
               value: {{ .Values.cloudSQL.instance | quote }}
             {{- end }}
           volumeMounts:
-            - name: tls-certs
-              mountPath: /certs
-              readOnly: true
             {{- if .Values.cloudSQL.enabled }}
             - name: cloudsql-socket
               mountPath: {{ .Values.cloudSQL.socketDir }}
@@ -131,11 +128,6 @@ spec:
         {{- end }}
 
       volumes:
-        - name: tls-certs
-          secret:
-            # cert-manager populates this secret automatically via the Ingress annotation
-            secretName: {{ if .Values.tls.existingSecret }}{{ .Values.tls.existingSecret }}{{ else }}{{ include "task-manager.fullname" . }}-tls{{ end }}
-            optional: true
         {{- if .Values.cloudSQL.enabled }}
         - name: cloudsql-socket
           emptyDir: {}

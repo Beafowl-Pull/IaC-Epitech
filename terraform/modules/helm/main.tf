@@ -184,6 +184,7 @@ resource "helm_release" "task_manager" {
   depends_on = [
     helm_release.cert_manager,
     helm_release.traefik,
+    helm_release.kube_prometheus_stack,
   ]
 }
 

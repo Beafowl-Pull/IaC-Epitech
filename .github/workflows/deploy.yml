@@ -214,6 +214,19 @@ jobs:
           import_if_missing module.helm.helm_release.arc_controller arc-systems/arc
           import_if_missing module.helm.helm_release.arc_runner_set arc-runners/arc-runner-set
 
+      - name: Terraform apply — cert-manager only
+        run: |
+          terraform apply -auto-approve \
+            -target=module.helm.helm_release.cert_manager \
+            -var-file="envs/staging/terraform.tfvars" \
+            -var="image_tag=${{ needs.build-push.outputs.image_tag }}" \
+            -var="image_repo=placeholder" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+        working-directory: terraform
+
       - name: Apply ClusterIssuers
         run: |
           kubectl wait --for=condition=established --timeout=300s \
@@ -416,6 +429,19 @@ jobs:
           import_if_missing module.helm.helm_release.kube_prometheus_stack monitoring/monitoring
           import_if_missing module.helm.helm_release.arc_controller arc-systems/arc
           import_if_missing module.helm.helm_release.arc_runner_set arc-runners/arc-runner-set
+
+      - name: Terraform apply — cert-manager only
+        run: |
+          terraform apply -auto-approve \
+            -target=module.helm.helm_release.cert_manager \
+            -var-file="envs/prod/terraform.tfvars" \
+            -var="image_tag=${{ needs.build-push.outputs.image_tag }}" \
+            -var="image_repo=placeholder" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET }}" \
+            -var="api_password=${{ secrets.API_PASSWORD }}" \
+            -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
+            -var="github_pat=${{ secrets.GIT_PAT }}"
+        working-directory: terraform
 
       - name: Apply ClusterIssuers
         run: |

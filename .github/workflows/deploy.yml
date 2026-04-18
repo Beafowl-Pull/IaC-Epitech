@@ -101,7 +101,7 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
             -var="github_pat=${{ secrets.GIT_PAT }}"
 
-      - name: Import GKE resources explicitly
+      - name: Sync GKE state with GCP reality
         working-directory: terraform
         run: |
           TF_VARS=(
@@ -111,14 +111,32 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}"
             -var="github_pat=${{ secrets.GIT_PAT }}"
           )
-          terraform state show module.gke.google_container_cluster.main \
-            || terraform import "${TF_VARS[@]}" \
-               module.gke.google_container_cluster.main \
-               "projects/iac-epitech-489911/locations/europe-west1/clusters/task-manager-staging"
-          terraform state show module.gke.google_container_node_pool.main \
-            || terraform import "${TF_VARS[@]}" \
-               module.gke.google_container_node_pool.main \
-               "projects/iac-epitech-489911/locations/europe-west1/clusters/task-manager-staging/nodePools/task-manager-staging-node-pool"
+          PROJECT="iac-epitech-489911"
+          REGION="europe-west1"
+          CLUSTER="task-manager-staging"
+          NODE_POOL="task-manager-staging-node-pool"
+
+          # Cluster
+          if gcloud container clusters describe "${CLUSTER}" \
+              --region="${REGION}" --project="${PROJECT}" > /dev/null 2>&1; then
+            terraform state show module.gke.google_container_cluster.main \
+              || terraform import "${TF_VARS[@]}" \
+                 module.gke.google_container_cluster.main \
+                 "projects/${PROJECT}/locations/${REGION}/clusters/${CLUSTER}"
+          else
+            terraform state rm module.gke.google_container_cluster.main || true
+          fi
+
+          # Node pool
+          if gcloud container node-pools describe "${NODE_POOL}" \
+              --cluster="${CLUSTER}" --region="${REGION}" --project="${PROJECT}" > /dev/null 2>&1; then
+            terraform state show module.gke.google_container_node_pool.main \
+              || terraform import "${TF_VARS[@]}" \
+                 module.gke.google_container_node_pool.main \
+                 "projects/${PROJECT}/locations/${REGION}/clusters/${CLUSTER}/nodePools/${NODE_POOL}"
+          else
+            terraform state rm module.gke.google_container_node_pool.main || true
+          fi
 
       - name: Terraform apply — infra
         run: |
@@ -316,7 +334,7 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}" \
             -var="github_pat=${{ secrets.GIT_PAT }}"
 
-      - name: Import GKE resources explicitly
+      - name: Sync GKE state with GCP reality
         working-directory: terraform
         run: |
           TF_VARS=(
@@ -326,15 +344,32 @@ jobs:
             -var="grafana_password=${{ secrets.GRAFANA_PASSWORD }}"
             -var="github_pat=${{ secrets.GIT_PAT }}"
           )
-          terraform state show module.gke.google_container_cluster.main \
-            || terraform import "${TF_VARS[@]}" \
-               module.gke.google_container_cluster.main \
-               "projects/iac-epitech-489911/locations/europe-west1/clusters/task-manager-prod"
-          terraform state show module.gke.google_container_node_pool.main \
-            || terraform import "${TF_VARS[@]}" \
-               module.gke.google_container_node_pool.main \
-               "projects/iac-epitech-489911/locations/europe-west1/clusters/task-manager-prod/nodePools/task-manager-prod-node-pool" \
-            || echo "  [skip] node pool not yet created, Terraform will create it"
+          PROJECT="iac-epitech-489911"
+          REGION="europe-west1"
+          CLUSTER="task-manager-prod"
+          NODE_POOL="task-manager-prod-node-pool"
+
+          # Cluster
+          if gcloud container clusters describe "${CLUSTER}" \
+              --region="${REGION}" --project="${PROJECT}" > /dev/null 2>&1; then
+            terraform state show module.gke.google_container_cluster.main \
+              || terraform import "${TF_VARS[@]}" \
+                 module.gke.google_container_cluster.main \
+                 "projects/${PROJECT}/locations/${REGION}/clusters/${CLUSTER}"
+          else
+            terraform state rm module.gke.google_container_cluster.main || true
+          fi
+
+          # Node pool
+          if gcloud container node-pools describe "${NODE_POOL}" \
+              --cluster="${CLUSTER}" --region="${REGION}" --project="${PROJECT}" > /dev/null 2>&1; then
+            terraform state show module.gke.google_container_node_pool.main \
+              || terraform import "${TF_VARS[@]}" \
+                 module.gke.google_container_node_pool.main \
+                 "projects/${PROJECT}/locations/${REGION}/clusters/${CLUSTER}/nodePools/${NODE_POOL}"
+          else
+            terraform state rm module.gke.google_container_node_pool.main || true
+          fi
 
       - name: Terraform apply — infra
         run: |

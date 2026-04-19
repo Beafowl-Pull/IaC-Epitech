@@ -210,6 +210,18 @@ resource "helm_release" "kube_prometheus_stack" {
     name  = "grafana.ingress.hosts[0]"
     value = "grafana.${var.domain}"
   }
+  set {
+    name  = "grafana.ingress.annotations.cert-manager\\.io/cluster-issuer"
+    value = var.cluster_issuer
+  }
+  set {
+    name  = "grafana.ingress.tls[0].secretName"
+    value = "grafana-tls"
+  }
+  set {
+    name  = "grafana.ingress.tls[0].hosts[0]"
+    value = "grafana.${var.domain}"
+  }
   set_sensitive {
     name  = "grafana.adminPassword"
     value = var.grafana_password
